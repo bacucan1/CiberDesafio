@@ -1,0 +1,10 @@
+.login-shell { max-width: 460px; margin: 0 auto; padding: 15vh 24px; }
+.eyebrow { color: var(--ion-color-primary); font-size: .72rem; font-weight: 800; letter-spacing: .08em; }
+h1 { color: var(--ion-color-dark); font-size: 3rem; margin: 12px 0; }
+.intro { color: var(--ion-color-medium); margin-bottom: 32px; }
+ion-segment { margin-bottom: 22px; }
+ion-list { background: transparent; margin-bottom: 18px; }
+ion-item { --background: transparent; --padding-start: 0; }
+.separator { align-items: center; color: var(--ion-color-medium); display: flex; gap: 12px; justify-content: center; margin: 18px 0; }
+.separator::before, .separator::after { background: #d7e4e1; content: ''; height: 1px; width: 100%; }
+.google-button { --border-color: #c8d5d7; --color: var(--ion-color-dark); }

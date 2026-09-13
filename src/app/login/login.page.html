@@ -1,0 +1,24 @@
+<ion-content>
+  <main class="login-shell">
+    <p class="eyebrow">CYBERSHIELD TEAM</p>
+    <h1>CiberDesafío</h1>
+    <p class="intro">Entrena tus decisiones para navegar con más criterio.</p>
+    <ion-segment [(ngModel)]="rol">
+      <ion-segment-button value="estudiante">Estudiante</ion-segment-button>
+      <ion-segment-button value="docente">Docente</ion-segment-button>
+    </ion-segment>
+    <ion-list>
+      @if (registrando) { <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input [(ngModel)]="nombre"></ion-input></ion-item> }
+      <ion-item><ion-label position="stacked">Correo</ion-label><ion-input type="email" [(ngModel)]="correo"></ion-input></ion-item>
+      <ion-item><ion-label position="stacked">Contraseña</ion-label><ion-input type="password" [(ngModel)]="clave"></ion-input></ion-item>
+    </ion-list>
+    @if (error) { <ion-text color="danger"><p>{{ error }}</p></ion-text> }
+    <ion-button expand="block" (click)="enviar()">{{ registrando ? 'Crear cuenta' : 'Ingresar' }}</ion-button>
+    <div class="separator"><span>o</span></div>
+    <ion-button class="google-button" fill="outline" expand="block" (click)="registrarseConGoogle()">
+      <ion-icon slot="start" name="logo-google" aria-hidden="true"></ion-icon>
+      Continuar con Google
+    </ion-button>
+    <ion-button fill="clear" expand="block" (click)="registrando = !registrando">{{ registrando ? 'Ya tengo una cuenta' : 'Crear una cuenta' }}</ion-button>
+  </main>
+</ion-content>

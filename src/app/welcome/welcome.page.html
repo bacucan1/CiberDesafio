@@ -1,0 +1,21 @@
+<ion-content [fullscreen]="true">
+  <main class="welcome-shell">
+    <section class="welcome-copy">
+      <p class="eyebrow">CYBERSHIELD TEAM · EXPERIENCIA EDUCATIVA</p>
+      <h1>Ciber<span>Desafío</span></h1>
+      <p class="tagline">¿Tomarías la decisión correcta?</p>
+      <p class="description">Una aventura de decisiones sobre phishing, privacidad, contraseñas y las situaciones digitales que ocurren todos los días.</p>
+      <div class="welcome-actions">
+        <ion-button class="primary-action" (click)="entrar()"><ion-icon slot="start" name="play"></ion-icon>Comenzar desafío</ion-button>
+        <ion-button fill="clear" (click)="entrar()">Continuar <ion-icon slot="end" name="arrow-forward"></ion-icon></ion-button>
+      </div>
+      <div class="welcome-links"><ion-button fill="clear" (click)="entrar()"><ion-icon slot="start" name="school"></ion-icon>Aprender</ion-button><ion-button fill="clear" (click)="entrar()">Iniciar sesión</ion-button></div>
+    </section>
+    <section class="welcome-art" aria-label="Escudo de CiberDesafío">
+      <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+      <div class="shield-hero"><ion-icon name="shield-checkmark"></ion-icon></div>
+      <div class="floating-note note-one"><ion-icon name="lock-closed"></ion-icon><span>Tu información<br><strong>está en juego</strong></span></div>
+      <div class="floating-note note-two"><span class="signal-dot"></span><span>Decide<br><strong>con criterio</strong></span></div>
+    </section>
+  </main>
+</ion-content>

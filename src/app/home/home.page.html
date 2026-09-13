@@ -1,20 +1,107 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>
-      Blank
-    </ion-title>
+    <ion-title>CiberDesafío</ion-title>
+    <ion-button slot="end" fill="clear" [attr.aria-label]="sonidoActivo ? 'Desactivar sonido' : 'Activar sonido'" (click)="toggleSonido()">
+      <ion-icon [name]="sonidoActivo ? 'volume-high' : 'volume-mute'"></ion-icon>
+    </ion-button>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <main class="dashboard-shell">
+    <section class="welcome-block page-reveal">
+      <div>
+        <p class="eyebrow">CYBERSHIELD TEAM · RUTA ESTUDIANTE</p>
+        <h1>Cada decisión cambia tu historia.</h1>
+        <p class="intro">Desliza, decide y descubre cómo tus acciones transforman la seguridad de toda tu comunidad.</p>
+      </div>
+      <div class="shield-mark"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon></div>
+    </section>
 
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
-  </div>
+    <section class="player-stats page-reveal">
+      <div class="stat-item"><span class="stat-icon xp-icon"><ion-icon name="star"></ion-icon></span><div><strong>{{ puntos }} XP</strong><small>Recompensa total</small></div></div>
+      <div class="stat-item"><span class="stat-icon streak-icon"><ion-icon name="flame"></ion-icon></span><div><strong>{{ racha }} {{ racha === 1 ? 'racha' : 'rachas' }}</strong><small>Decisiones correctas seguidas</small></div></div>
+      <div class="stat-item"><span class="stat-icon level-icon"><ion-icon name="medal"></ion-icon></span><div><strong>{{ nivel }}</strong><small>Nivel actual</small></div></div>
+    </section>
+
+    <section class="story-balance page-reveal">
+      <div class="balance-heading"><span><ion-icon name="sparkles"></ion-icon> ESTADO DE LA HISTORIA</span><strong>{{ estadoHistoria }}</strong></div>
+      <div class="balance-grid">
+        <div class="balance-meter"><div><span>Seguridad</span><strong>{{ seguridad }}</strong></div><ion-progress-bar [value]="seguridad / 100"></ion-progress-bar></div>
+        <div class="balance-meter"><div><span>Confianza</span><strong>{{ confianza }}</strong></div><ion-progress-bar [value]="confianza / 100"></ion-progress-bar></div>
+        <div class="balance-meter"><div><span>Reputación</span><strong>{{ reputacion }}</strong></div><ion-progress-bar [value]="reputacion / 100"></ion-progress-bar></div>
+      </div>
+    </section>
+
+    <div class="game-layout">
+      <aside class="mission-map page-reveal">
+        <div class="section-heading"><div><p class="eyebrow">MAZO DE HISTORIAS</p><h2>Elige tu camino</h2></div><ion-chip color="success">{{ ejercicios.length }} rutas</ion-chip></div>
+        <div class="exercise-list">
+          @for (ejercicio of ejercicios; track ejercicio.titulo) {
+            <button class="exercise-item" [class.active]="escenario.id === ejercicio.id" [style.--route-color]="ejercicio.color" (click)="seleccionarRuta(ejercicio)">
+              <span class="exercise-icon"><ion-icon [name]="ejercicio.icono ?? 'sparkles'"></ion-icon></span>
+              <span class="exercise-copy"><strong>{{ ejercicio.titulo }}</strong><small>{{ ejercicio.eje }} · {{ ejercicio.personaje }}</small></span>
+              @if (escenario.id === ejercicio.id) { <span class="active-dot"></span> }
+            </button>
+          }
+          </div>
+        <div class="mission-tip"><ion-icon name="sparkles"></ion-icon><p><strong>Una historia, muchas rutas</strong><br>Cada elección cambia el siguiente evento.</p></div>
+      </aside>
+
+      <div class="card-deck page-reveal">
+        <span class="deck-layer deck-layer-back"></span>
+        <span class="deck-layer deck-layer-front"></span>
+        <button class="deck-arrow deck-arrow-left" aria-label="Ruta anterior" (click)="rutaAnterior()"><ion-icon name="arrow-forward"></ion-icon></button>
+      <ion-card class="scenario-card" [class.card-changing]="animandoCarta" [class.card-dragging]="arrastrandoCarta" [style.transform]="transformacionCarta" (pointerdown)="iniciarGesto($event)" (pointermove)="moverGesto($event)" (pointerup)="terminarGesto($event)" (pointercancel)="terminarGesto($event)">
+        <ion-card-header>
+          <div class="card-meta"><ion-badge [style.--background]="escenario.color">{{ escenario.capitulo }} · {{ escenario.tema }}</ion-badge><span>{{ decisiones.length }} de {{ totalPasos }} situaciones</span></div>
+          <ion-card-title>{{ escenario.titulo }}</ion-card-title>
+          <ion-card-subtitle>{{ escenario.descripcion }} <strong class="character-tag">{{ escenario.personaje }}</strong></ion-card-subtitle>
+          <div class="story-visual" [style.--route-color]="escenario.color">
+            <span class="visual-icon"><ion-icon [name]="escenario.icono ?? 'sparkles'"></ion-icon></span>
+            <span><small>CAPÍTULO NARRATIVO</small><strong>{{ escenario.personaje }}</strong></span>
+            <span class="visual-signal"></span>
+          </div>
+          <div class="story-thread" aria-label="Progreso de situaciones">
+            @for (paso of escenario.nodos.slice(0, totalPasos); track paso.id; let index = $index) {
+              <span class="thread-node" [class.thread-done]="index < decisiones.length" [class.thread-current]="index === decisiones.length"><span>{{ index + 1 }}</span></span>
+              @if (index < totalPasos - 1) { <i class="thread-line" [class.thread-line-done]="index < decisiones.length"></i> }
+            }
+          </div>
+          <div class="progress-label"><span>Progreso de misión</span><strong>{{ progresoPorcentaje }}%</strong></div>
+          <ion-progress-bar [value]="progreso"></ion-progress-bar>
+        </ion-card-header>
+        <ion-card-content>
+          @if (completado) {
+            <div class="feedback complete-feedback">
+              <span class="completion-medal"><ion-icon name="medal" aria-hidden="true"></ion-icon></span>
+              <div><span class="feedback-label">ESCENARIO COMPLETADO</span><h2>{{ rangoFinal }}</h2><p>Lograste {{ aciertos }} decisiones seguras de {{ decisiones.length }} y ganaste {{ puntos }} XP.</p><div class="result-grid"><span><strong>{{ porcentajeAciertos }}%</strong> puntuación</span><span><strong>{{ riesgosDetectados }}</strong> riesgos detectados</span></div><p class="final-recommendation"><ion-icon name="sparkles"></ion-icon>{{ recomendacionFinal }}</p></div>
+              <ion-button fill="outline" (click)="reiniciar()">Repetir misión</ion-button>
+            </div>
+          } @else if (mostrandoRetroalimentacion && opcionSeleccionada) {
+            <div class="feedback" [class.feedback-good]="opcionSeleccionada.correcta" [style.transform]="'translateX(' + desplazamientoFeedback + 'px)'" (pointerdown)="iniciarGestoFeedback($event)" (pointermove)="moverGestoFeedback($event)" (pointerup)="terminarGestoFeedback($event)" (pointercancel)="terminarGestoFeedback($event)">
+              <div class="feedback-topline"><span class="feedback-label">{{ opcionSeleccionada.correcta ? 'BUENA DECISIÓN' : 'REVISA ESTA DECISIÓN' }}</span><span class="xp-reward"><ion-icon name="star"></ion-icon> +{{ recompensaActual }} XP</span></div>
+              <h2>{{ opcionSeleccionada.consecuencia }}</h2>
+              <p>{{ opcionSeleccionada.explicacion }}</p>
+              <span class="feedback-swipe-hint"><ion-icon name="arrow-forward"></ion-icon> Desliza a la derecha para continuar</span>
+              <ion-button (click)="continuar()">Continuar <ion-icon slot="end" name="arrow-forward"></ion-icon></ion-button>
+            </div>
+          } @else {
+            <div class="question-heading"><span class="step-number">{{ decisiones.length + 1 }}</span><div><p class="step-label">NUEVA SITUACIÓN</p><h2>{{ nodoActual.pregunta }}</h2></div></div>
+            <div class="swipe-hint"><ion-icon name="arrow-forward"></ion-icon><span>Desliza la carta o elige una respuesta para continuar</span><ion-icon name="arrow-forward"></ion-icon></div>
+            <div class="option-list story-options">
+              @for (opcion of nodoActual.opciones; track opcion.id; let index = $index) {
+                <button class="option-button" [class.choice-left]="index === 0" [class.choice-right]="index === 1" (click)="elegirPorClic(opcion)">
+                  <span class="choice-direction">{{ index === 0 ? 'IZQUIERDA' : 'DERECHA' }}</span><span class="option-copy">{{ opcion.texto }}</span><ion-icon name="arrow-forward" aria-hidden="true"></ion-icon>
+                </button>
+              }
+            </div>
+            <p class="story-note"><ion-icon name="shield-checkmark"></ion-icon> No hay una ruta perfecta. Observa cómo cambia el mundo después de cada decisión.</p>
+          }
+        </ion-card-content>
+      </ion-card>
+      <button class="deck-arrow deck-arrow-right" aria-label="Ruta siguiente" (click)="rutaSiguiente()"><ion-icon name="arrow-forward"></ion-icon></button>
+      </div>
+    </div>
+  </main>
 </ion-content>

@@ -1,0 +1,4 @@
+.feedback { cursor: grab; touch-action: pan-y; transition: transform 180ms cubic-bezier(.22,.8,.28,1); will-change: transform; }
+.feedback:active { cursor: grabbing; }
+.feedback-swipe-hint { align-items: center; color: #9d8b66; display: flex; font-family: monospace; font-size: .58rem; gap: 5px; margin: 0 0 11px; }
+.feedback-swipe-hint ion-icon { color: var(--neon, #67e6c0); font-size: .9rem; }
