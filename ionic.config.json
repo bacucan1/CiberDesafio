@@ -1,0 +1,7 @@
+{
+  "name": "CiberDesafio",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
