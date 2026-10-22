@@ -1,0 +1,13 @@
+{
+  "name": "ciberdesafio-rules-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-ciberdesafio --config ../../firebase.json \"node --test firestore.rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^14.0.0"
+  }
+}

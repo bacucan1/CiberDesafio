@@ -3,14 +3,17 @@
     <p class="eyebrow">CYBERSHIELD TEAM</p>
     <h1>CiberDesafío</h1>
     <p class="intro">Entrena tus decisiones para navegar con más criterio.</p>
-    <ion-segment [(ngModel)]="rol">
-      <ion-segment-button value="estudiante">Estudiante</ion-segment-button>
-      <ion-segment-button value="docente">Docente</ion-segment-button>
-    </ion-segment>
+    @if (registrando) {
+      <ion-segment [(ngModel)]="rol">
+        <ion-segment-button value="estudiante">Estudiante</ion-segment-button>
+        <ion-segment-button value="docente">Docente</ion-segment-button>
+      </ion-segment>
+    }
     <ion-list>
       @if (registrando) { <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input [(ngModel)]="nombre"></ion-input></ion-item> }
       <ion-item><ion-label position="stacked">Correo</ion-label><ion-input type="email" [(ngModel)]="correo"></ion-input></ion-item>
       <ion-item><ion-label position="stacked">Contraseña</ion-label><ion-input type="password" [(ngModel)]="clave"></ion-input></ion-item>
+      @if (registrando && rol === 'docente') { <ion-item><ion-label position="stacked">Código de invitación docente</ion-label><ion-input [(ngModel)]="codigoInvitacion" autocapitalize="off" autocomplete="off"></ion-input></ion-item> }
     </ion-list>
     @if (error) { <ion-text color="danger"><p>{{ error }}</p></ion-text> }
     <ion-button expand="block" (click)="enviar()">{{ registrando ? 'Crear cuenta' : 'Ingresar' }}</ion-button>

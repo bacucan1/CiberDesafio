@@ -1,24 +1,118 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ---------- Funciones auxiliares ----------
     function autenticado() { return request.auth != null; }
+
+    function ruta(coleccion, id) {
+      return /databases/$(database)/documents/$(coleccion)/$(id);
+    }
+
+    function existePerfil(uid) { return exists(ruta('usuarios', uid)); }
+    function perfilDe(uid) { return get(ruta('usuarios', uid)).data; }
+
+    // El rol SIEMPRE se lee del perfil guardado en Firestore, nunca de lo que envia el cliente.
     function esDocente() {
-      return autenticado() && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'docente';
+      return autenticado() && existePerfil(request.auth.uid) && perfilDe(request.auth.uid).rol == 'docente';
+    }
+    function esEstudiante() {
+      return autenticado() && existePerfil(request.auth.uid) && perfilDe(request.auth.uid).rol == 'estudiante';
+    }
+    function institucionDelDocente() { return perfilDe(request.auth.uid).institucion; }
+
+    // ---------- Codigos de invitacion para docentes ----------
+    // Un administrador crea en la consola de Firebase un documento codigos_invitacion/{codigo}
+    // con el campo activo: true. El id tiene la forma <institucion>-<secreto> (ej. colegiosur-K7P2Q9ZX):
+    // lo que va antes del primer guion es el identificador de la institucion y queda fijado en el perfil del docente.
+    // Ningun cliente puede leer ni escribir esta coleccion; las reglas solo comprueban que el codigo exista y este activo.
+    // Se valida el formato antes de armar la ruta para evitar inyeccion de segmentos ("../", "/").
+    function formatoCodigo(codigo) { return codigo is string && codigo.matches('^[a-z0-9]{2,30}-[A-Za-z0-9]{6,32}$'); }
+    function codigoVigente(codigo) {
+      return formatoCodigo(codigo)
+        && exists(ruta('codigos_invitacion', codigo))
+        && get(ruta('codigos_invitacion', codigo)).data.activo == true;
+    }
+
+    // ---------- Perfiles ----------
+    function camposPerfil() {
+      return ['uid', 'nombre', 'rol', 'institucion', 'grado', 'grupo', 'codigoInvitacion', 'fechaActualizacion'];
+    }
+    function datosPerfilBasicos(d) {
+      return d.keys().hasOnly(camposPerfil())
+        && d.keys().hasAll(['uid', 'nombre', 'rol', 'institucion'])
+        && d.nombre is string && d.nombre.size() > 0 && d.nombre.size() <= 80
+        && d.institucion is string && d.institucion.size() <= 100
+        && (!('grupo' in d) || (d.grupo is string && d.grupo.size() <= 20))
+        && (!('grado' in d) || d.grado is int);
+    }
+    function perfilNuevoValido(uid) {
+      let d = request.resource.data;
+      return datosPerfilBasicos(d)
+        && d.uid == uid
+        && (
+          // Estudiante: nunca puede traer codigo de invitacion.
+          (d.rol == 'estudiante' && !('codigoInvitacion' in d))
+          ||
+          // Docente: solo con un codigo vigente; la institucion sale del prefijo del codigo y no se puede elegir.
+          (d.rol == 'docente'
+            && codigoVigente(d.get('codigoInvitacion', null))
+            && d.institucion == d.codigoInvitacion.split('-')[0])
+        );
+    }
+    function cambioPerfilPermitido() {
+      let nuevo = request.resource.data;
+      let actual = resource.data;
+      return datosPerfilBasicos(nuevo)
+        && nuevo.uid == actual.uid
+        && nuevo.rol == actual.rol                                   // el rol nunca cambia desde el cliente
+        && nuevo.get('codigoInvitacion', null) == actual.get('codigoInvitacion', null)
+        && (actual.rol != 'docente' || nuevo.institucion == actual.institucion);  // la institucion del docente tambien es fija
     }
 
     match /usuarios/{uid} {
-      allow read, create, update: if autenticado() && request.auth.uid == uid;
-      allow read: if esDocente() && resource.data.institucion == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.institucion;
+      // Cada usuario solo ve y modifica su propio perfil. El docente NO lee perfiles de estudiantes
+      // (son menores de edad); solo ve resultados agregados.
+      allow get: if autenticado() && request.auth.uid == uid;
+      allow list: if false;
+      allow create: if autenticado() && request.auth.uid == uid && perfilNuevoValido(uid);
+      allow update: if autenticado() && request.auth.uid == uid && cambioPerfilPermitido();
+      allow delete: if false;
     }
-    match /escenarios/{id} { allow read: if autenticado(); allow write: if false; }
+
+    // ---------- Escenarios ----------
+    match /escenarios/{id} {
+      allow read: if autenticado();
+      allow write: if false;
+    }
+
+    // ---------- Decisiones ----------
+    function decisionValida() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['uid', 'escenarioId', 'nodoId', 'situacion', 'opcionElegida', 'correcta', 'puntuacion', 'resultado', 'fecha', 'eje'])
+        && d.keys().hasAll(['uid', 'escenarioId', 'nodoId', 'opcionElegida', 'correcta', 'fecha'])
+        && d.uid == request.auth.uid
+        && d.escenarioId is string && d.nodoId is string && d.opcionElegida is string
+        && d.correcta is bool && d.fecha is string
+        && (!('puntuacion' in d) || d.puntuacion is number)
+        && (!('eje' in d) || d.eje in ['fraude', 'relación de riesgo', 'higiene']);
+    }
+
     match /decisiones/{id} {
-      allow create: if autenticado() && request.resource.data.uid == request.auth.uid;
+      allow create: if esEstudiante() && decisionValida();
       allow read: if autenticado() && resource.data.uid == request.auth.uid;
       allow update, delete: if false;
     }
+
+    // ---------- Resultados agregados (solo docentes de la misma institucion) ----------
     match /resultados_agregados/{id} {
-      allow read: if esDocente() && resource.data.institucion == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.institucion;
+      allow read: if esDocente() && resource.data.institucion == institucionDelDocente();
       allow write: if false;
+    }
+
+    // ---------- Codigos de invitacion: invisibles para los clientes ----------
+    match /codigos_invitacion/{codigo} {
+      allow read, write: if false;
     }
   }
 }

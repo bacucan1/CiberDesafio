@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { IonButton, IonContent, IonIcon, IonInput, IonItem, IonLabel, IonList, IonSegment, IonSegmentButton, IonText } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { logoGoogle } from 'ionicons/icons';
-import { AuthService } from '../core/services/auth.service';
+import { AuthService, CodigoDocenteInvalidoError } from '../core/services/auth.service';
 import { RolUsuario } from '../core/models/domain.models';
 
 @Component({
@@ -17,9 +17,10 @@ export class LoginPage {
   correo = '';
   clave = '';
   nombre = '';
+  codigoInvitacion = '';
   rol: RolUsuario = 'estudiante';
   registrando = false;
-  error = '';
+  error = this.auth.consumirErrorAcceso();
 
   constructor() {
     addIcons({ logoGoogle });
@@ -28,19 +29,24 @@ export class LoginPage {
   async enviar(): Promise<void> {
     this.error = '';
     try {
-      if (this.registrando) await this.auth.registrar(this.nombre, this.correo, this.clave, this.rol);
-      else await this.auth.ingresar(this.correo, this.clave, this.rol);
-    } catch {
-      this.error = 'No pudimos validar tus datos. Revisa el correo y la contraseña.';
+      if (this.registrando) await this.auth.registrar(this.nombre, this.correo, this.clave, this.rol, this.codigoInvitacion.trim());
+      else await this.auth.ingresar(this.correo, this.clave);
+    } catch (error) {
+      this.error = error instanceof CodigoDocenteInvalidoError
+        ? 'El código de invitación no es válido o ya no está activo.'
+        : 'No pudimos validar tus datos. Revisa el correo y la contraseña.';
     }
   }
 
   async registrarseConGoogle(): Promise<void> {
     this.error = '';
     try {
-      await this.auth.registrarseConGoogle(this.rol);
-    } catch {
-      this.error = 'No pudimos completar el registro con Google. Intenta nuevamente.';
+      // Al ingresar (no registrar) se ignora el rol elegido: manda el perfil guardado.
+      await this.auth.registrarseConGoogle(this.registrando ? this.rol : 'estudiante', this.registrando ? this.codigoInvitacion.trim() : undefined);
+    } catch (error) {
+      this.error = error instanceof CodigoDocenteInvalidoError
+        ? 'El código de invitación no es válido o ya no está activo.'
+        : 'No pudimos completar el registro con Google. Intenta nuevamente.';
     }
   }
 }

@@ -11,7 +11,7 @@ export class SimulationService {
     return nodo.opciones.find((opcion) => opcion.id === opcionId);
   }
 
-  crearDecision(escenarioId: string, nodo: NodoDecision, opcion: OpcionDecision, uid = 'demo-estudiante'): Decision {
+  crearDecision(escenarioId: string, nodo: NodoDecision, opcion: OpcionDecision, uid: string): Decision {
     return {
       uid,
       escenarioId,
