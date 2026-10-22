@@ -1,4 +1,4 @@
-# Acceso y permisos (parte de Daniel)
+# Acceso y permisos
 
 ## Modelo
 - El **rol** (`estudiante` | `docente`) vive en `usuarios/{uid}` de Firestore. El navegador nunca decide el rol: ya no se guarda en `localStorage`.
