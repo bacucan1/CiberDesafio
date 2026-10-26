@@ -1,24 +1,307 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function autenticado() { return request.auth != null; }
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function perfilActual() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function esDocenteDeLaInstitucion(institucion) {
+      return autenticado()
+        && perfilActual().rol == 'docente'
+        && perfilActual().institucion == institucion;
+    }
+
     function esDocente() {
-      return autenticado() && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'docente';
+      return autenticado()
+        && perfilActual().rol == 'docente'
+        && perfilActual().institucion is string
+        && perfilActual().institucion.size() > 0;
+    }
+
+    function puedeVincular() {
+      return request.resource.data.codigoVinculacion is string
+        && get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.estado == 'activo'
+        && get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.venceEn > request.time
+        && get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.usos < get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.maxUsos
+        && getAfter(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.usos == get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.usos + 1
+        && get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.codigo == request.resource.data.codigoVinculacion
+        && request.resource.data.institucion == get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.institucion
+        && request.resource.data.grupo == get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.grupo
+        && request.resource.data.grupoId == get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.grupoId
+        && request.resource.data.codigoVinculacion == get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.codigo
+        && (('grado' in request.resource.data) == ('grado' in get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data))
+        && (!('grado' in request.resource.data) || request.resource.data.grado == get(/databases/$(database)/documents/codigos_vinculacion/$(request.resource.data.codigoVinculacion)).data.grado);
+    }
+
+    function resultadoCoincideConPerfil(id, datos) {
+      return autenticado()
+        && datos.keys().hasOnly([
+          'grupoId', 'grupo', 'institucion', 'grado', 'eje', 'estudiantes',
+          'totalAciertos', 'totalDecisiones', 'porcentajeAciertos', 'fechaCalculo'
+        ])
+        && datos.keys().hasAll([
+          'grupoId', 'grupo', 'institucion', 'eje', 'estudiantes',
+          'totalAciertos', 'totalDecisiones', 'porcentajeAciertos', 'fechaCalculo'
+        ])
+        && perfilActual().rol == 'estudiante'
+        && datos.grupoId == perfilActual().grupoId
+        && id == datos.grupoId + '_' + datos.eje
+        && datos.grupo == perfilActual().grupo
+        && datos.institucion == perfilActual().institucion
+        && (('grado' in datos) == ('grado' in perfilActual()))
+        && (!('grado' in datos) || datos.grado == perfilActual().grado)
+        && datos.eje in ['fraude', 'relación de riesgo', 'higiene']
+        && datos.estudiantes is int
+        && datos.totalAciertos is int
+        && datos.totalDecisiones is int
+        && datos.porcentajeAciertos is number
+        && datos.fechaCalculo is string
+        && get(/databases/$(database)/documents/grupos/$(datos.grupoId)).data.institucion == datos.institucion
+        && get(/databases/$(database)/documents/grupos/$(datos.grupoId)).data.grupo == datos.grupo
+        && (('grado' in datos) == ('grado' in get(/databases/$(database)/documents/grupos/$(datos.grupoId)).data))
+        && (!('grado' in datos) || datos.grado == get(/databases/$(database)/documents/grupos/$(datos.grupoId)).data.grado);
+    }
+
+    function participanteNuevoValido(id) {
+      let participantePath = /databases/$(database)/documents/resultados_agregados/$(id)/participantes/$(request.auth.uid);
+      let participanteDespues = getAfter(participantePath).data;
+      return participanteDespues.decisiones == 1
+        && participanteDespues.aciertos in [0, 1];
+    }
+
+    function porcentajeValido(datos) {
+      return datos.totalDecisiones > 0
+        && datos.porcentajeAciertos >= (datos.totalAciertos * 100 / datos.totalDecisiones) - 0.5
+        && datos.porcentajeAciertos <= (datos.totalAciertos * 100 / datos.totalDecisiones) + 0.5;
+    }
+
+    function crearResultadoValido(id) {
+      let datos = request.resource.data;
+      return resultadoCoincideConPerfil(id, datos)
+        && datos.estudiantes == 1
+        && datos.totalDecisiones == 1
+        && datos.totalAciertos in [0, 1]
+        && porcentajeValido(datos)
+        && datos.totalAciertos == getAfter(/databases/$(database)/documents/resultados_agregados/$(id)/participantes/$(request.auth.uid)).data.aciertos
+        && participanteNuevoValido(id);
+    }
+
+    function actualizarResultadoValido(id) {
+      let participantePath = /databases/$(database)/documents/resultados_agregados/$(id)/participantes/$(request.auth.uid);
+      let participanteAntes = get(participantePath);
+      let participanteDespues = getAfter(participantePath).data;
+      let decisionesAnteriores = resource.data.totalDecisiones;
+      let aciertosAnteriores = resource.data.totalAciertos;
+      return resultadoCoincideConPerfil(id, request.resource.data)
+        && participanteDespues.decisiones == (exists(participantePath) ? participanteAntes.data.decisiones + 1 : 1)
+        && (exists(participantePath)
+          ? participanteDespues.aciertos in [participanteAntes.data.aciertos, participanteAntes.data.aciertos + 1]
+          : participanteDespues.aciertos in [0, 1])
+        && request.resource.data.totalDecisiones == decisionesAnteriores + 1
+        && request.resource.data.totalAciertos == aciertosAnteriores + (participanteDespues.aciertos - (exists(participantePath) ? participanteAntes.data.aciertos : 0))
+        && request.resource.data.estudiantes == resource.data.estudiantes + (exists(participantePath) ? 0 : 1)
+        && porcentajeValido(request.resource.data);
+    }
+
+    function participanteCoincideConResultado(id, uid) {
+      let resultadoPath = /databases/$(database)/documents/resultados_agregados/$(id);
+      let resultadoDespues = getAfter(resultadoPath);
+      return uid == request.auth.uid
+        && existsAfter(resultadoPath)
+        && resultadoCoincideConPerfil(id, resultadoDespues.data)
+        && resultadoDespues.data.totalDecisiones == (exists(resultadoPath)
+          ? get(resultadoPath).data.totalDecisiones + 1
+          : 1);
     }
 
     match /usuarios/{uid} {
-      allow read, create, update: if autenticado() && request.auth.uid == uid;
-      allow read: if esDocente() && resource.data.institucion == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.institucion;
+      allow create: if autenticado()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly([
+          'uid', 'nombre', 'rol', 'institucion', 'fechaActualizacion', 'grado', 'grupo'
+        ])
+        && request.resource.data.keys().hasAll(['uid', 'nombre', 'rol', 'institucion'])
+        && request.resource.data.uid == uid
+        && request.resource.data.rol == 'estudiante'
+        && request.resource.data.institucion == '';
+
+      allow read: if autenticado() && request.auth.uid == uid;
+
+      allow update: if autenticado()
+        && request.auth.uid == uid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.rol == resource.data.rol
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'nombre', 'fechaActualizacion'
+          ])
+          || (
+            resource.data.rol == 'estudiante'
+            && resource.data.institucion == ''
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'institucion', 'grupo', 'grupoId', 'grado', 'codigoVinculacion', 'fechaActualizacion'
+            ])
+            && puedeVincular()
+          )
+        );
+
+      allow delete: if false;
     }
-    match /escenarios/{id} { allow read: if autenticado(); allow write: if false; }
+
+    match /solicitudes_docente/{uid} {
+      allow create: if autenticado()
+        && request.auth.uid == uid
+        && get(/databases/$(database)/documents/usuarios/$(uid)).data.rol == 'estudiante'
+        && request.resource.data.keys().hasOnly([
+          'uid', 'correo', 'nombre', 'institucionSolicitada', 'estado', 'fechaSolicitud'
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.correo == request.auth.token.email
+        && request.resource.data.institucionSolicitada is string
+        && request.resource.data.institucionSolicitada.size() >= 3
+        && request.resource.data.institucionSolicitada.size() <= 120
+        && request.resource.data.estado == 'pendiente';
+
+      allow read: if autenticado() && request.auth.uid == uid;
+      allow update, delete: if false;
+    }
+
+    match /instituciones/{id} {
+      allow read: if autenticado()
+        && perfilActual().institucion == resource.data.nombre;
+      allow write: if false;
+    }
+
+    match /escenarios/{id} {
+      allow read: if autenticado();
+      allow write: if false;
+    }
+
+    match /grupos/{id} {
+      allow get: if (esDocente() && (!exists(/databases/$(database)/documents/grupos/$(id))
+          || request.auth.uid in resource.data.profesores
+            && perfilActual().institucion == resource.data.institucion))
+        || (autenticado() && !exists(/databases/$(database)/documents/grupos/$(id)));
+      allow list: if esDocente()
+        && request.auth.uid in resource.data.profesores
+        && perfilActual().institucion == resource.data.institucion;
+      allow create: if esDocente()
+        && request.resource.data.keys().hasOnly([
+          'institucion', 'grupo', 'grado', 'profesores', 'fechaActualizacion'
+        ])
+        && request.resource.data.institucion == perfilActual().institucion
+        && request.resource.data.grupo is string
+        && request.resource.data.grupo.size() >= 2
+        && request.resource.data.grupo.size() <= 60
+        && request.resource.data.profesores == [request.auth.uid]
+        && request.resource.data.fechaActualizacion is timestamp
+        && (!('grado' in request.resource.data)
+          || request.resource.data.grado in [9, 10, 11]);
+      allow update: if esDocente()
+        && resource.data.institucion == perfilActual().institucion
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'profesores', 'fechaActualizacion'
+        ])
+        && request.resource.data.profesores.hasAll(resource.data.profesores)
+        && request.auth.uid in request.resource.data.profesores
+        && request.resource.data.profesores.size() <= resource.data.profesores.size() + 1
+        && request.resource.data.fechaActualizacion is timestamp;
+      allow delete: if false;
+    }
+
+    match /codigos_vinculacion/{codigo} {
+      allow get: if autenticado()
+        && resource.data.codigo == codigo
+        && resource.data.estado == 'activo'
+        && resource.data.venceEn > request.time
+        && resource.data.usos < resource.data.maxUsos;
+      allow list: if esDocente()
+        && resource.data.creadoPor == request.auth.uid;
+      allow create: if esDocente()
+        && request.resource.data.keys().hasOnly([
+          'codigo', 'grupoId', 'grupo', 'institucion', 'grado', 'creadoPor',
+          'estado', 'usos', 'maxUsos', 'venceEn', 'fechaCreacion'
+        ])
+        && request.resource.data.codigo == codigo
+        && codigo.matches('[A-F0-9]{12}')
+        && request.resource.data.grupoId is string
+        && request.resource.data.grupoId.size() == 64
+        && request.resource.data.grupo is string
+        && request.resource.data.institucion == perfilActual().institucion
+        && request.resource.data.creadoPor == request.auth.uid
+        && request.resource.data.estado == 'activo'
+        && request.resource.data.usos == 0
+        && request.resource.data.maxUsos == 30
+        && request.resource.data.venceEn is timestamp
+        && request.resource.data.venceEn > request.time
+        && request.resource.data.venceEn <= request.time + duration.value(14, 'd')
+        && request.resource.data.fechaCreacion is timestamp
+        && getAfter(/databases/$(database)/documents/grupos/$(request.resource.data.grupoId)).data.institucion == request.resource.data.institucion
+        && getAfter(/databases/$(database)/documents/grupos/$(request.resource.data.grupoId)).data.grupo == request.resource.data.grupo
+        && (('grado' in request.resource.data) == ('grado' in getAfter(/databases/$(database)/documents/grupos/$(request.resource.data.grupoId)).data))
+        && (!('grado' in request.resource.data)
+          || request.resource.data.grado == getAfter(/databases/$(database)/documents/grupos/$(request.resource.data.grupoId)).data.grado);
+      allow update: if (
+          esDocente()
+          && resource.data.creadoPor == request.auth.uid
+          && resource.data.estado == 'activo'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'revocadoEn'])
+          && request.resource.data.estado == 'revocado'
+          && request.resource.data.revocadoEn is timestamp
+        ) || (
+          autenticado()
+          && perfilActual().rol == 'estudiante'
+          && resource.data.estado == 'activo'
+          && resource.data.venceEn > request.time
+          && resource.data.usos < resource.data.maxUsos
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usos'])
+          && request.resource.data.usos == resource.data.usos + 1
+          && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.institucion == ''
+          && getAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.codigoVinculacion == codigo
+          && getAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.institucion == resource.data.institucion
+          && getAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.grupo == resource.data.grupo
+          && getAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.grupoId == resource.data.grupoId
+          && (('grado' in resource.data) == ('grado' in getAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data))
+          && (!('grado' in resource.data)
+            || getAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.grado == resource.data.grado)
+        );
+      allow delete: if false;
+    }
+
     match /decisiones/{id} {
-      allow create: if autenticado() && request.resource.data.uid == request.auth.uid;
+      allow create: if false;
       allow read: if autenticado() && resource.data.uid == request.auth.uid;
       allow update, delete: if false;
     }
+
     match /resultados_agregados/{id} {
-      allow read: if esDocente() && resource.data.institucion == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.institucion;
-      allow write: if false;
+      allow get: if !exists(/databases/$(database)/documents/resultados_agregados/$(id))
+        || esDocenteDeLaInstitucion(resource.data.institucion)
+        || resultadoCoincideConPerfil(id, resource.data);
+      allow list: if esDocenteDeLaInstitucion(resource.data.institucion);
+      allow create: if crearResultadoValido(id);
+      allow update: if actualizarResultadoValido(id);
+      allow delete: if false;
+
+      match /participantes/{uid} {
+        allow get: if autenticado() && request.auth.uid == uid;
+        allow list: if false;
+        allow create: if uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['aciertos', 'decisiones'])
+          && request.resource.data.decisiones == 1
+          && request.resource.data.aciertos in [0, 1]
+          && participanteCoincideConResultado(id, uid);
+        allow update: if uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['aciertos', 'decisiones'])
+          && request.resource.data.decisiones == resource.data.decisiones + 1
+          && request.resource.data.aciertos in [resource.data.aciertos, resource.data.aciertos + 1]
+          && participanteCoincideConResultado(id, uid);
+        allow delete: if false;
+      }
     }
   }
 }

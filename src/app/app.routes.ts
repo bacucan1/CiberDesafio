@@ -11,6 +11,11 @@ export const routes: Routes = [
     loadComponent: () => import('./login/login.page').then((m) => m.LoginPage),
   },
   {
+    path: 'perfil',
+    canActivate: [roleGuard],
+    loadComponent: () => import('./profile/profile.page').then((m) => m.ProfilePage),
+  },
+  {
     path: 'docente',
     canActivate: [roleGuard],
     data: { rol: 'docente' },

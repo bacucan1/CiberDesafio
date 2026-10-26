@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, key, location, lockClosed, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi } from 'ionicons/icons';
@@ -6,17 +7,19 @@ import { Decision, Escenario, NodoDecision, OpcionDecision } from '../core/model
 import { SimulationService } from '../core/services/simulation.service';
 import { DecisionService } from '../core/services/decision.service';
 import { ScenarioService } from '../core/services/scenario.service';
+import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss', 'home.futuristic.scss', 'home.gestures.scss'],
-  imports: [IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar],
+  imports: [RouterLink, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar],
 })
 export class HomePage {
   private readonly simulation = inject(SimulationService);
   private readonly decisionStore = inject(DecisionService);
   private readonly scenarioCatalog = inject(ScenarioService);
+  private readonly auth = inject(AuthService);
   readonly ejercicios = this.scenarioCatalog.obtenerTodos();
   escenario: Escenario = this.ejercicios[0];
   nodoActual: NodoDecision = this.escenario.nodos[0];
@@ -34,6 +37,8 @@ export class HomePage {
   animandoCarta = false;
   desplazamientoCarta = 0;
   arrastrandoCarta = false;
+  errorPersistencia = '';
+  private aciertosConocidos = 0;
   private inicioGesto?: number;
   private gestoConfirmado = false;
   desplazamientoFeedback = 0;
@@ -146,12 +151,24 @@ export class HomePage {
 
   confirmarDecision(): void {
     if (!this.opcionSeleccionada) return;
+    const uid = this.auth.usuarioActual()?.uid;
+    if (!uid) {
+      this.errorPersistencia = 'Tu sesión no está activa. Vuelve a iniciar sesión para guardar tu progreso.';
+      return;
+    }
 
-    const decision = this.simulation.crearDecision(this.escenario.id, this.nodoActual, this.opcionSeleccionada);
+    this.errorPersistencia = '';
+    const decision = this.simulation.crearDecision(this.escenario.id, this.nodoActual, this.opcionSeleccionada, uid);
     decision.situacion = this.nodoActual.pregunta;
     decision.eje = this.escenario.eje;
     this.decisiones = [...this.decisiones, decision];
-    void this.decisionStore.guardar(decision).catch(() => undefined);
+    if (decision.correcta) {
+      this.aciertosConocidos += 1;
+    }
+    void this.decisionStore.guardar(decision).catch((error: unknown) => {
+      console.error('No se pudo guardar la decisión del estudiante.', error);
+      this.errorPersistencia = 'Esta decisión no pudo guardarse. Revisa tu conexión antes de continuar.';
+    });
     this.recompensaActual = decision.correcta ? 100 : 25;
     this.puntos += this.recompensaActual;
     this.racha = decision.correcta ? this.racha + 1 : 0;
@@ -189,6 +206,7 @@ export class HomePage {
     this.nodoActual = this.escenario.nodos[0];
     this.opcionSeleccionada = undefined;
     this.decisiones = [];
+    this.aciertosConocidos = 0;
     this.mostrandoRetroalimentacion = false;
     this.completado = false;
     this.puntos = 0;
@@ -215,7 +233,7 @@ export class HomePage {
   }
 
   get porcentajeAciertos(): number {
-    return this.decisiones.length ? Math.round((this.aciertos / this.decisiones.length) * 100) : 0;
+    return this.decisiones.length ? Math.round((this.aciertosConocidos / this.decisiones.length) * 100) : 0;
   }
 
   get progresoPorcentaje(): number {
@@ -223,11 +241,11 @@ export class HomePage {
   }
 
   get aciertos(): number {
-    return this.decisiones.filter((decision) => decision.correcta).length;
+    return this.aciertosConocidos;
   }
 
   get riesgosDetectados(): number {
-    return this.decisiones.filter((decision) => !decision.correcta).length;
+    return this.decisiones.length - this.aciertosConocidos;
   }
 
   get rangoFinal(): string {

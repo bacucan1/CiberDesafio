@@ -1,2 +1,109 @@
-<ion-header><ion-toolbar><ion-title>Panel docente</ion-title></ion-toolbar></ion-header>
-<ion-content><main class="teacher-shell"><p class="eyebrow">GRUPO 901-A · RESULTADOS AGREGADOS</p><h1>Mapa de aprendizaje</h1><p class="intro">Una vista rápida de las habilidades que el grupo ya domina y las que necesitan refuerzo.</p><section class="overview"><div><span>ESTUDIANTES</span><strong>24</strong><small>participantes activos</small></div><div><span>PROMEDIO GENERAL</span><strong>{{ promedio }}%</strong><small>en los seis temas</small></div><div><span>PRIORIDAD</span><strong>{{ temaPrioritario }}</strong><small>requiere conversación</small></div></section><section class="analysis-layout"><ion-card class="topic-card"><ion-card-header><ion-badge color="warning">DESEMPEÑO POR TEMA</ion-badge><ion-card-title>¿Dónde reforzar?</ion-card-title></ion-card-header><ion-card-content>@for (tema of temas; track tema.nombre) {<div class="topic-row"><div><span>{{ tema.nombre }}</span><strong>{{ tema.porcentaje }}%</strong></div><div class="bar-track"><span [style.width.%]="tema.porcentaje"></span></div></div>}</ion-card-content></ion-card><ion-card class="insight-card"><ion-card-header><ion-badge color="success">LECTURA DEL GRUPO</ion-badge><ion-card-title>Próximo foco</ion-card-title></ion-card-header><ion-card-content><p>El grupo responde mejor ante situaciones de ciberacoso, pero necesita practicar la revisión de permisos y datos personales.</p><div class="insight-stat"><strong>58%</strong><span>en privacidad</span></div><ion-button fill="outline" expand="block">Ver evolución</ion-button></ion-card-content></ion-card></section></main></ion-content>
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Panel docente</ion-title>
+    <ion-button slot="end" fill="clear" routerLink="/perfil">Mi perfil</ion-button>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="teacher-shell">
+    <p class="eyebrow">SEGUIMIENTO EDUCATIVO · {{ institucion || 'INSTITUCIÓN' }}</p>
+    <h1>Mapa de aprendizaje</h1>
+    <p class="intro">Consulta el avance agregado de tus grupos y genera invitaciones para vincular estudiantes.</p>
+
+    @if (error) { <ion-text color="danger"><p class="teacher-message" role="alert">{{ error }}</p></ion-text> }
+    @if (mensaje) { <ion-text color="success"><p class="teacher-message success" role="status">{{ mensaje }}</p></ion-text> }
+
+    @if (cargando) {
+      <p role="status">Cargando datos de tu institución…</p>
+    } @else if (!error || institucion) {
+      <section class="group-tools">
+        <div class="group-tools-heading">
+          <div><p class="eyebrow">ACCESO A TUS GRUPOS</p><h2>Invitar estudiantes</h2></div>
+          <span class="privacy-chip"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon> Sin datos personales en el panel</span>
+        </div>
+        <p>Cada código es de un solo grupo, permite hasta 30 vinculaciones y vence en 14 días. Puedes revocarlo cuando quieras.</p>
+        <div class="invite-form">
+          <ion-item>
+            <ion-label position="stacked">Grupo</ion-label>
+            <ion-input [(ngModel)]="nuevoGrupo" name="nuevoGrupo" placeholder="Ej. 901-A" maxlength="60"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Grado</ion-label>
+            <ion-select [(ngModel)]="nuevoGrado" name="nuevoGrado" placeholder="Opcional">
+              <ion-select-option [value]="9">9.º</ion-select-option>
+              <ion-select-option [value]="10">10.º</ion-select-option>
+              <ion-select-option [value]="11">11.º</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-button [disabled]="generandoCodigo || nuevoGrupo.trim().length < 2" (click)="crearCodigo()">
+            {{ generandoCodigo ? 'Creando…' : 'Crear código de invitación' }}
+          </ion-button>
+        </div>
+        @if (codigoCreado) {
+          <div class="new-code">
+            <div><span>CÓDIGO NUEVO · {{ grupoSeleccionado }}</span><strong>{{ codigoCreado }}</strong></div>
+            <ion-button fill="outline" (click)="copiarCodigo(codigoCreado)">Copiar código</ion-button>
+          </div>
+        }
+        @if (codigos.length) {
+          <div class="invite-list">
+            <h3>Códigos de invitación</h3>
+            @for (codigo of codigos; track codigo.codigo) {
+              <article class="invite-row">
+                <div><strong>{{ codigo.grupo }}@if (codigo.grado) { · {{ codigo.grado }}.º }</strong><span>{{ codigo.codigo }} · {{ codigo.usos }}/{{ codigo.maxUsos }} usos · vence {{ codigo.venceEn | date:'mediumDate' }}</span></div>
+                <ion-button fill="clear" [disabled]="codigo.estado !== 'activo'" (click)="revocarCodigo(codigo)"> {{ codigo.estado === 'activo' ? 'Revocar' : 'Revocado' }} </ion-button>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="results-section">
+        <div class="results-heading">
+          <div><p class="eyebrow">RESULTADOS ANÓNIMOS Y AGREGADOS</p><h2>Progreso del grupo</h2></div>
+          @if (grupos.length) {
+            <ion-item class="group-picker">
+              <ion-label position="stacked">Grupo</ion-label>
+              <ion-select [(ngModel)]="grupoSeleccionado" aria-label="Seleccionar grupo">
+                @for (grupo of grupos; track claveGrupo(grupo)) {
+                  <ion-select-option [value]="claveGrupo(grupo)">{{ grupo.grupo }}@if (grupo.grado) { · {{ grupo.grado }}.º }</ion-select-option>
+                }
+              </ion-select>
+            </ion-item>
+          }
+        </div>
+
+        @if (!grupos.length) {
+          <div class="empty-state"><ion-icon name="people" aria-hidden="true"></ion-icon><h3>Aún no hay grupos vinculados</h3><p>Crea un código de invitación para iniciar un grupo. Las métricas aparecerán cuando sus estudiantes completen actividades.</p></div>
+        } @else if (!resultadosDelGrupo.length) {
+          <div class="empty-state"><ion-icon name="bar-chart" aria-hidden="true"></ion-icon><h3>Esperando los primeros resultados</h3><p>El grupo <strong>{{ etiquetaGrupoSeleccionado }}</strong> ya está preparado. El progreso agregado aparecerá cuando se registren decisiones de aprendizaje.</p></div>
+        } @else {
+          <section class="overview">
+            <div><span>ESTUDIANTES PARTICIPANTES</span><strong>{{ cantidadEstudiantes }}</strong><small>en este grupo</small></div>
+            <div><span>PROMEDIO DE ACIERTOS</span><strong>{{ promedio }}%</strong><small>promedio de los ejes registrados</small></div>
+            <div><span>PRIORIDAD DE REFUERZO</span><strong>{{ temaPrioritario }}</strong><small>menor porcentaje de aciertos</small></div>
+          </section>
+          <section class="analysis-layout">
+            <ion-card class="topic-card">
+              <ion-card-header><ion-badge color="warning">DESEMPEÑO AGREGADO</ion-badge><ion-card-title>Avance por eje</ion-card-title></ion-card-header>
+              <ion-card-content>
+                @for (resultado of resultadosDelGrupo; track resultado.eje) {
+                  <div class="topic-row">
+                    <div><span>{{ resultado.eje }}</span><strong>{{ resultado.porcentajeAciertos }}%</strong></div>
+                    <div class="bar-track"><span [style.width.%]="resultado.porcentajeAciertos"></span></div>
+                    <small>{{ resultado.estudiantes }} participantes</small>
+                  </div>
+                }
+              </ion-card-content>
+            </ion-card>
+            <ion-card class="insight-card">
+              <ion-card-header><ion-badge color="success">PRIVACIDAD DEL ESTUDIANTE</ion-badge><ion-card-title>Datos protegidos</ion-card-title></ion-card-header>
+              <ion-card-content><p>Este panel muestra métricas resumidas por grupo y eje, sin nombres, correos ni historial individual. Las puntuaciones se calculan en el dispositivo del estudiante y no se validan en un servidor.</p></ion-card-content>
+            </ion-card>
+          </section>
+        }
+      </section>
+    }
+  </main>
+</ion-content>

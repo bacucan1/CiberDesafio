@@ -1,24 +1,115 @@
-<ion-content>
-  <main class="login-shell">
-    <p class="eyebrow">CYBERSHIELD TEAM</p>
-    <h1>CiberDesafío</h1>
-    <p class="intro">Entrena tus decisiones para navegar con más criterio.</p>
-    <ion-segment [(ngModel)]="rol">
-      <ion-segment-button value="estudiante">Estudiante</ion-segment-button>
-      <ion-segment-button value="docente">Docente</ion-segment-button>
-    </ion-segment>
-    <ion-list>
-      @if (registrando) { <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input [(ngModel)]="nombre"></ion-input></ion-item> }
-      <ion-item><ion-label position="stacked">Correo</ion-label><ion-input type="email" [(ngModel)]="correo"></ion-input></ion-item>
-      <ion-item><ion-label position="stacked">Contraseña</ion-label><ion-input type="password" [(ngModel)]="clave"></ion-input></ion-item>
-    </ion-list>
-    @if (error) { <ion-text color="danger"><p>{{ error }}</p></ion-text> }
-    <ion-button expand="block" (click)="enviar()">{{ registrando ? 'Crear cuenta' : 'Ingresar' }}</ion-button>
-    <div class="separator"><span>o</span></div>
-    <ion-button class="google-button" fill="outline" expand="block" (click)="registrarseConGoogle()">
-      <ion-icon slot="start" name="logo-google" aria-hidden="true"></ion-icon>
-      Continuar con Google
-    </ion-button>
-    <ion-button fill="clear" expand="block" (click)="registrando = !registrando">{{ registrando ? 'Ya tengo una cuenta' : 'Crear una cuenta' }}</ion-button>
+<ion-content [fullscreen]="true">
+  <main class="auth-layout">
+    <section class="story-panel" aria-label="Bienvenida a CiberDesafío">
+      <a class="brand" routerLink="/inicio" aria-label="CiberDesafío, inicio">
+        <span class="brand-mark"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon></span>
+        <span>CYBER<span>DESAFÍO</span></span>
+      </a>
+
+      <div class="story-copy">
+        <p class="eyebrow"><span class="status-dot"></span> APRENDE A PROTEGER LO QUE IMPORTA</p>
+        <h1>Una decisión<br>puede cambiar<br><span>tu historia.</span></h1>
+        <p>Entrena tu criterio digital con historias interactivas, retos y decisiones de la vida real.</p>
+      </div>
+
+      <div class="signal-card">
+        <div class="signal-icon"><ion-icon name="lock-closed" aria-hidden="true"></ion-icon></div>
+        <div><strong>Tu próxima decisión cuenta</strong><span>Phishing · privacidad · seguridad digital</span></div>
+        <ion-icon class="signal-arrow" name="arrow-forward" aria-hidden="true"></ion-icon>
+      </div>
+      <div class="panel-footer"><span>CYBERSHIELD TEAM</span><span>APRENDER · DECIDIR · PROTEGER</span></div>
+      <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+      <span class="decorative-mark mark-one" aria-hidden="true">+</span>
+      <span class="decorative-mark mark-two" aria-hidden="true">·</span>
+    </section>
+
+    <section class="form-panel">
+      <div class="mobile-brand">
+        <span class="brand-mark"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon></span>
+        <span>CYBER<span>DESAFÍO</span></span>
+      </div>
+      <div class="auth-card">
+        <div class="form-heading">
+          <p class="eyebrow">{{ registrando ? 'ÚNETE A LA EXPERIENCIA' : 'QUÉ BUENO TENERTE DE VUELTA' }}</p>
+          <h2>{{ registrando ? 'Crea tu cuenta' : 'Inicia sesión' }}</h2>
+          <p>{{ registrando ? 'Un espacio seguro para aprender y fortalecer tu criterio digital.' : 'Continúa tu camino para navegar con más criterio.' }}</p>
+        </div>
+
+        <div class="mode-switch" role="group" aria-label="Tipo de acceso">
+          <button type="button" [class.selected]="!registrando" [attr.aria-pressed]="!registrando" (click)="registrando = false; solicitandoDocencia = false; error = ''; mensaje = ''">Ingresar</button>
+          <button type="button" [class.selected]="registrando" [attr.aria-pressed]="registrando" (click)="registrando = true; error = ''; mensaje = ''">Crear cuenta</button>
+        </div>
+
+        @if (registrando) {
+          <div class="account-type">
+            <button type="button" [class.selected]="!solicitandoDocencia" [attr.aria-pressed]="!solicitandoDocencia" (click)="solicitandoDocencia = false; error = ''">
+              <ion-icon name="school" aria-hidden="true"></ion-icon><span>Estudiante</span>
+            </button>
+            <button type="button" [class.selected]="solicitandoDocencia" [attr.aria-pressed]="solicitandoDocencia" (click)="solicitandoDocencia = true; error = ''">
+              <ion-icon name="people" aria-hidden="true"></ion-icon><span>Docente</span>
+            </button>
+          </div>
+          @if (solicitandoDocencia) {
+            <p class="approval-note"><ion-icon name="information-circle" aria-hidden="true"></ion-icon> Tu cuenta docente requiere aprobación institucional. Mientras se revisa, tu acceso permanecerá como estudiante.</p>
+          }
+        }
+
+        <form class="auth-form" (ngSubmit)="enviar()">
+          @if (registrando) {
+            <label class="field-label" for="account-name">Nombre completo</label>
+            <div class="input-wrap">
+              <ion-icon name="person" aria-hidden="true"></ion-icon>
+              <ion-input id="account-name" name="nombre" [(ngModel)]="nombre" autocomplete="name" placeholder="Tu nombre" maxlength="100" required></ion-input>
+            </div>
+          }
+          <label class="field-label" for="account-email">Correo electrónico</label>
+          <div class="input-wrap">
+            <ion-icon name="mail" aria-hidden="true"></ion-icon>
+            <ion-input id="account-email" name="correo" [(ngModel)]="correo" type="email" autocomplete="email" inputmode="email" placeholder="nombre@correo.com" required></ion-input>
+          </div>
+          @if (registrando && solicitandoDocencia) {
+            <label class="field-label" for="institution">Institución educativa</label>
+            <div class="input-wrap">
+              <ion-icon name="business" aria-hidden="true"></ion-icon>
+              <ion-input id="institution" name="institucion" [(ngModel)]="institucion" autocomplete="organization" placeholder="Nombre de la institución" maxlength="120" required></ion-input>
+            </div>
+          }
+          <div class="password-heading">
+            <label class="field-label" for="account-password">Contraseña</label>
+            @if (!registrando) { <button type="button" class="text-link" [disabled]="cargando" (click)="recuperarClave()">¿Olvidaste tu contraseña?</button> }
+          </div>
+          <div class="input-wrap">
+            <ion-icon name="key" aria-hidden="true"></ion-icon>
+            <ion-input id="account-password" name="clave" [(ngModel)]="clave" [type]="mostrarClave ? 'text' : 'password'" [autocomplete]="registrando ? 'new-password' : 'current-password'" placeholder="Mínimo 6 caracteres" minlength="6" required></ion-input>
+            <button type="button" class="visibility-button" [attr.aria-label]="mostrarClave ? 'Ocultar contraseña' : 'Mostrar contraseña'" (click)="mostrarClave = !mostrarClave">
+              <ion-icon [name]="mostrarClave ? 'eye-off' : 'eye'" aria-hidden="true"></ion-icon>
+            </button>
+          </div>
+
+          @if (error) { <p class="form-message error-message" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ error }}</p> }
+          @if (mensaje) { <p class="form-message success-message" role="status"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>{{ mensaje }}</p> }
+
+          <ion-button class="submit-button" type="submit" expand="block" [disabled]="cargando">
+            {{ cargando ? 'Un momento…' : registrando ? (solicitandoDocencia ? 'Enviar solicitud docente' : 'Crear cuenta de estudiante') : 'Ingresar a mi cuenta' }}
+            @if (!cargando) { <ion-icon slot="end" name="arrow-forward"></ion-icon> }
+          </ion-button>
+        </form>
+
+        @if (!registrando) {
+          <div class="separator"><span>o continúa con</span></div>
+          <ion-button class="google-button" fill="outline" expand="block" [disabled]="cargando" (click)="registrarseConGoogle()">
+            <ion-icon slot="start" name="logo-google" aria-hidden="true"></ion-icon>
+            Continuar con Google
+          </ion-button>
+        }
+
+        <p class="form-footnote">
+          {{ registrando ? '¿Ya tienes una cuenta?' : '¿Primera vez por aquí?' }}
+          <button type="button" class="text-link" (click)="alternarRegistro()">{{ registrando ? 'Inicia sesión' : 'Crea tu cuenta' }}</button>
+        </p>
+        <p class="privacy-note"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon> Tus datos se protegen y se usan para tu experiencia educativa.</p>
+      </div>
+      <p class="mobile-footer">CYBERSHIELD TEAM · APRENDER · DECIDIR · PROTEGER</p>
+    </section>
   </main>
 </ion-content>

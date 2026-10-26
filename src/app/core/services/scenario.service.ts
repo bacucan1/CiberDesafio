@@ -4,11 +4,15 @@ import { Escenario } from '../models/domain.models';
 
 @Injectable({ providedIn: 'root' })
 export class ScenarioService {
+  private readonly escenariosPorId = new Map<string, Escenario>(
+    RUTAS_CIBERDESAFIO.map((escenario) => [escenario.id, escenario]),
+  );
+
   obtenerTodos(): Escenario[] {
     return RUTAS_CIBERDESAFIO;
   }
 
   obtenerPorId(id: string): Escenario | undefined {
-    return this.obtenerTodos().find((escenario) => escenario.id === id);
+    return this.escenariosPorId.get(id);
   }
 }

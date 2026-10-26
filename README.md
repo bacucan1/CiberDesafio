@@ -63,22 +63,25 @@ Ionic + Angular + TypeScript
 				|
 Node.js + TypeScript + Express
 				|
-Firebase Cloud Functions + Firebase Hosting
+Firebase Hosting
 ```
 
 ### Frontend
 
 - Pantalla de inicio y autenticación.
+- Recuperación de contraseña, registro de estudiantes y solicitud de acceso docente sujeta a aprobación administrativa.
+- Panel de perfil autenticado con nombre editable, correo, rol, institución, grado y grupo.
+- Vinculación de estudiantes mediante códigos de grupo con vencimiento, límite de usos y revocación.
 - Flujo de juego narrativo para estudiantes.
-- Mazo de escenarios y motor de decisiones basado en datos.
-- Persistencia de decisiones en Firestore.
-- Panel docente con indicadores agregados.
+- Mazo de escenarios y puntuación calculados localmente en el cliente.
+- Persistencia directa en Firestore de métricas agregadas por grupo y eje; no se guarda historial individual de decisiones.
+- Panel docente con resultados agregados y sin historial individual de estudiantes.
 
 ### Backend y servicios
 
 - API REST protegida con tokens de Firebase.
-- Cloud Function para recalcular resultados agregados.
-- Reglas de seguridad de Firestore por usuario y rol.
+- Firestore para invitaciones, vinculación y sincronización de métricas; sus reglas limitan operaciones a perfiles y grupos autorizados.
+- Las funciones de escritura y cálculo se ejecutan en el cliente; el plan Spark no requiere Cloud Functions.
 - Firebase Hosting para el despliegue web.
 - Capacitor para empaquetar la misma aplicación en Android e iOS.
 
@@ -99,7 +102,7 @@ src/app/
 shared/                Interfaces compartidas
 backend/
 	src/                 API Express
-	functions/           Cloud Functions
+	functions/           Fuentes legadas de Cloud Functions (no desplegadas)
 ```
 
 ## Inicio rápido
@@ -118,7 +121,27 @@ La aplicación estará disponible en `http://localhost:4200` o en el puerto indi
 1. Configura las credenciales del proyecto en `src/app/core/firebase.config.ts`.
 2. Activa Email/Password y Google en Firebase Authentication.
 3. Crea la base de datos de Firestore.
-4. Publica las reglas de seguridad cuando corresponda.
+4. Publica `firestore.rules` antes de habilitar el acceso de usuarios.
+5. El registro público crea únicamente perfiles de estudiante. Para habilitar un docente, crea primero su cuenta en Firebase Authentication y, con una cuenta administrativa de confianza, crea `usuarios/{uid}` en Firestore con `uid`, `nombre`, `rol: "docente"` e `institucion`. Los estudiantes se vinculan con un código de invitación; los clientes no pueden asignar ni cambiar roles.
+
+Antes de publicar estas reglas en un proyecto existente, revisa los perfiles `usuarios/{uid}` ya creados: elimina o corrige cualquier rol docente que no haya sido asignado por un administrador. Las reglas nuevas impiden modificaciones posteriores desde clientes, pero no corrigen datos antiguos.
+
+La app determina el rol leyendo el perfil de Firestore; el valor guardado en el navegador no concede permisos. Una solicitud docente no cambia el rol: el administrador debe aprobarla manualmente. El cliente verifica las decisiones contra el catálogo local y envía incrementos de métricas en transacciones Firestore. Las reglas evitan que un estudiante escriba en otro grupo y no permiten que el panel docente lea los contadores individuales; aun así, un cliente modificado puede falsificar su propia puntuación, porque no hay validación antifraude de servidor.
+
+La ruta `/perfil` muestra el correo y proveedor de inicio de sesión de Firebase, el rol y los datos académicos del perfil. Cada persona puede actualizar su nombre; el rol y la institución docente requieren actualización administrativa. Los estudiantes obtienen su institución, grado y grupo al canjear una invitación válida.
+
+### Aprobación de instituciones y docentes
+
+Las cuentas docentes y las instituciones se habilitan con revisión manual desde Firebase Console; no hay autorregistro que otorgue permisos. Para procesar una solicitud de `solicitudes_docente/{uid}`:
+
+1. Verifica la identidad del solicitante y la institución solicitada.
+2. Crea o confirma `instituciones/{slug}` con `nombre` exacto y `estado: "activa"`. El slug es el nombre en minúsculas, sin tildes y con espacios sustituidos por guiones (por ejemplo, `universidad-libre`).
+3. Actualiza `usuarios/{uid}` con `rol: "docente"` e `institucion` igual al nombre aprobado.
+4. Actualiza el estado de la solicitud a `aprobada` y registra la fecha de revisión.
+
+Para rechazar, actualiza únicamente el estado de la solicitud a `rechazada`. El perfil y la institución no deben modificarse desde el cliente.
+
+Una vez aprobado, el docente genera invitaciones por grupo desde `/docente`. El código vence en 14 días, permite hasta 30 usos y se puede revocar. El estudiante lo canjea en `/perfil` mediante una transacción que limita la vinculación a una sola institución. Los docentes solo consultan métricas agregadas de su institución, por grupo y grado. Los perfiles de estudiantes y su historial individual no se exponen al panel. Los agregados se calculan en el dispositivo y no deben tratarse como evidencia de evaluación verificada.
 
 ### API
 
@@ -134,17 +157,31 @@ La API requiere credenciales de Firebase Admin mediante `GOOGLE_APPLICATION_CRED
 
 - `GET /escenarios`
 - `GET /escenarios/:id`
-- `POST /decisiones`
 - `GET /resultados/:grupo`
+
+El juego no llama a Cloud Functions para puntuar. El cliente calcula resultados con el catálogo local y escribe solo los contadores agregados autorizados por las reglas de Firestore. La colección `decisiones` no se usa para guardar el historial de juego.
 
 Los endpoints protegidos requieren un token Bearer de Firebase. Los resultados agregados requieren rol docente.
 
 ## Despliegue
 
+### Pruebas de acceso
+
+Las pruebas de rutas Angular comprueban que alterar `localStorage` no concede acceso docente. Las pruebas de reglas verifican que un estudiante no puede crear o promover perfiles docentes, leer decisiones ajenas ni consultar resultados de otra institución:
+
+```bash
+npm test -- --watch=false
+npm run test:security
+```
+
+`test:security` requiere Firebase CLI y Java para iniciar el emulador local de Firestore.
+
 ```bash
 npm run build
-firebase deploy --only hosting,firestore:rules,functions
+firebase deploy --only hosting,firestore:rules
 ```
+
+El frontend, Authentication y Firestore se mantienen dentro del plan Firebase Spark sujeto a sus cuotas. Las fuentes antiguas de Cloud Functions bajo `backend/functions` se conservan como referencia, pero ya no están configuradas ni se despliegan desde `firebase.json`.
 
 ## Equipo
 
