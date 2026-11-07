@@ -74,29 +74,6 @@
               </section>
             }
 
-            <section class="enrollment-section teacher-application" aria-labelledby="teacher-application-heading">
-              <div class="section-title">
-                <h2 id="teacher-application-heading">¿Eres docente?</h2>
-                @if (estadoSolicitudDocente === 'pendiente') {
-                  <p>Tu solicitud para <strong>{{ institucionSolicitada }}</strong> está pendiente de aprobación. Tu cuenta conserva el acceso de estudiante hasta que la institución la apruebe.</p>
-                } @else if (estadoSolicitudDocente === 'aprobada') {
-                  <p>Tu solicitud fue aprobada. Cierra sesión y vuelve a ingresar para actualizar los permisos de tu cuenta.</p>
-                } @else if (estadoSolicitudDocente === 'rechazada') {
-                  <p>La solicitud anterior no fue aprobada. Contacta al administrador de tu institución antes de solicitar nuevamente.</p>
-                } @else {
-                  <p>Solicita acceso docente. La institución debe verificar tu cuenta antes de habilitar funciones de seguimiento.</p>
-                }
-              </div>
-              @if (!estadoSolicitudDocente) {
-                <ion-item>
-                  <ion-label position="stacked">Institución educativa</ion-label>
-                  <ion-input name="institucionSolicitada" [(ngModel)]="institucionSolicitada" autocomplete="organization" maxlength="120" required></ion-input>
-                </ion-item>
-                <ion-button type="button" fill="outline" [disabled]="solicitandoDocente || institucionSolicitada.trim().length < 3" (click)="solicitarInstitucion()">
-                  {{ solicitandoDocente ? 'Enviando solicitud…' : 'Solicitar acceso docente' }}
-                </ion-button>
-              }
-            </section>
           }
 
           <div class="actions">

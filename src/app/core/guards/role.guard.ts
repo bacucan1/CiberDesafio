@@ -22,14 +22,3 @@ export const roleGuard: CanActivateFn = async (route) => {
     return router.createUrlTree(['/login']);
   }
 };
-  const rol = route.data['rol'] as RolUsuario | undefined;
-  const usuario = await auth.esperarSesion();
-  if (!usuario) {
-    return router.createUrlTree(['/login']);
-  }
-  const rolUsuario = await auth.obtenerRol(usuario);
-  if (!rolUsuario || (rol && rolUsuario !== rol)) {
-    return router.createUrlTree(['/login']);
-  }
-  return true;
-};

@@ -3,11 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonButton, IonContent, IonIcon, IonInput } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { logoGoogle } from 'ionicons/icons';
 import { AuthService, CodigoDocenteInvalidoError } from '../core/services/auth.service';
-import { RolUsuario } from '../core/models/domain.models';
 import { alertCircle, arrowForward, business, checkmarkCircle, eye, eyeOff, informationCircle, key, lockClosed, logoGoogle, mail, people, person, school, shieldCheckmark } from 'ionicons/icons';
-import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -21,15 +18,11 @@ export class LoginPage {
   clave = '';
   nombre = '';
   codigoInvitacion = '';
-  rol: RolUsuario = 'estudiante';
   registrando = false;
   error = this.auth.consumirErrorAcceso();
-  institucion = '';
-  registrando = false;
   solicitandoDocencia = false;
   mostrarClave = false;
   cargando = false;
-  error = '';
   mensaje = '';
 
   constructor() {
@@ -53,24 +46,15 @@ export class LoginPage {
       this.error = 'Escribe tu nombre para crear la cuenta.';
       return;
     }
-    if (this.registrando && this.solicitandoDocencia && this.institucion.trim().length < 3) {
-      this.error = 'Escribe el nombre de la institución para solicitar acceso docente.';
-      return;
-    }
     this.cargando = true;
     try {
-      if (this.registrando) await this.auth.registrar(this.nombre, this.correo, this.clave, this.rol, this.codigoInvitacion.trim());
-      else await this.auth.ingresar(this.correo, this.clave);
-    } catch (error) {
-      this.error = error instanceof CodigoDocenteInvalidoError
-        ? 'El código de invitación no es válido o ya no está activo.'
-        : 'No pudimos validar tus datos. Revisa el correo y la contraseña.';
       if (this.registrando) {
         await this.auth.registrar(
           this.nombre.trim(),
           correo,
           this.clave,
-          this.solicitandoDocencia ? this.institucion.trim() : undefined,
+          this.solicitandoDocencia ? 'docente' : 'estudiante',
+          this.solicitandoDocencia ? this.codigoInvitacion.trim() : undefined,
         );
       } else {
         await this.auth.ingresar(correo, this.clave);
@@ -88,7 +72,8 @@ export class LoginPage {
     if (this.cargando) return;
     this.cargando = true;
     try {
-      await this.auth.ingresarConGoogle();
+      const rol = this.registrando && this.solicitandoDocencia ? 'docente' : 'estudiante';
+      await this.auth.registrarseConGoogle(rol, rol === 'docente' ? this.codigoInvitacion.trim() : undefined);
     } catch (error: unknown) {
       this.error = this.mensajeError(error);
     } finally {
@@ -106,12 +91,6 @@ export class LoginPage {
     }
     this.cargando = true;
     try {
-      // Al ingresar (no registrar) se ignora el rol elegido: manda el perfil guardado.
-      await this.auth.registrarseConGoogle(this.registrando ? this.rol : 'estudiante', this.registrando ? this.codigoInvitacion.trim() : undefined);
-    } catch (error) {
-      this.error = error instanceof CodigoDocenteInvalidoError
-        ? 'El código de invitación no es válido o ya no está activo.'
-        : 'No pudimos completar el registro con Google. Intenta nuevamente.';
       await this.auth.recuperarClave(correo);
       this.mensaje = 'Si existe una cuenta con ese correo, recibirás un enlace para cambiar tu contraseña.';
     } catch (error: unknown) {
@@ -128,6 +107,9 @@ export class LoginPage {
   }
 
   private mensajeError(error: unknown): string {
+    if (error instanceof CodigoDocenteInvalidoError) {
+      return 'El código de invitación no es válido o ya no está activo.';
+    }
     const codigo = error && typeof error === 'object' && 'code' in error
       ? String(error.code)
       : '';

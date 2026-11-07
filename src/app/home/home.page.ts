@@ -8,7 +8,6 @@ import { AuthService } from '../core/services/auth.service';
 import { SimulationService } from '../core/services/simulation.service';
 import { DecisionService } from '../core/services/decision.service';
 import { ScenarioService } from '../core/services/scenario.service';
-import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-home',
@@ -21,7 +20,6 @@ export class HomePage {
   private readonly simulation = inject(SimulationService);
   private readonly decisionStore = inject(DecisionService);
   private readonly scenarioCatalog = inject(ScenarioService);
-  private readonly auth = inject(AuthService);
   readonly ejercicios = this.scenarioCatalog.obtenerTodos();
   escenario: Escenario = this.ejercicios[0];
   nodoActual: NodoDecision = this.escenario.nodos[0];
@@ -159,7 +157,6 @@ export class HomePage {
       return;
     }
 
-    const decision = this.simulation.crearDecision(this.escenario.id, this.nodoActual, this.opcionSeleccionada, this.auth.usuarioActual()?.uid ?? '');
     this.errorPersistencia = '';
     const decision = this.simulation.crearDecision(this.escenario.id, this.nodoActual, this.opcionSeleccionada, uid);
     decision.situacion = this.nodoActual.pregunta;

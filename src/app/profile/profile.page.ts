@@ -2,9 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonList, IonText, IonTitle, IonToolbar } from '@ionic/angular';
-import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { User } from 'firebase/auth';
-import { firebaseApp } from '../core/firebase.config';
 import { Usuario } from '../core/models/domain.models';
 import { AuthService } from '../core/services/auth.service';
 import { InstitutionalService } from '../core/services/institutional.service';
@@ -24,12 +22,9 @@ export class ProfilePage implements OnInit {
   usuario: User | null = null;
   nombre = '';
   codigoGrupo = '';
-  institucionSolicitada = '';
-  estadoSolicitudDocente = '';
   cargando = true;
   guardando = false;
   vinculando = false;
-  solicitandoDocente = false;
   error = '';
   mensaje = '';
 
@@ -40,17 +35,12 @@ export class ProfilePage implements OnInit {
         await this.router.navigateByUrl('/login');
         return;
       }
-      this.perfil = await this.auth.obtenerPerfil(this.usuario);
+      this.perfil = await this.auth.obtenerPerfil();
       if (!this.perfil) {
         this.error = 'No encontramos un perfil válido para esta cuenta. Contacta al equipo administrador.';
         return;
       }
       this.nombre = this.perfil.nombre;
-      if (this.perfil.rol === 'estudiante') {
-        this.institucionSolicitada = this.perfil.institucion;
-        const solicitud = await getDoc(doc(getFirestore(firebaseApp), 'solicitudes_docente', this.usuario.uid));
-        this.estadoSolicitudDocente = solicitud.exists() ? String(solicitud.data()['estado'] ?? '') : '';
-      }
     } catch (error: unknown) {
       console.error('No se pudo cargar el perfil del usuario.', error);
       this.error = 'No se pudo cargar tu perfil. Revisa tu conexión e intenta nuevamente.';
@@ -104,23 +94,6 @@ export class ProfilePage implements OnInit {
       this.error = this.mensajeServicio(error, 'No se pudo validar el código. Revisa que esté vigente y vuelve a intentarlo.');
     } finally {
       this.vinculando = false;
-    }
-  }
-
-  async solicitarInstitucion(): Promise<void> {
-    if (!this.usuario || this.solicitandoDocente || this.estadoSolicitudDocente) return;
-    this.solicitandoDocente = true;
-    this.error = '';
-    this.mensaje = '';
-    try {
-      await this.auth.solicitarAccesoDocente(this.usuario, this.institucionSolicitada);
-      this.estadoSolicitudDocente = 'pendiente';
-      this.mensaje = 'La solicitud se envió para revisión administrativa. Tu rol no cambia hasta su aprobación.';
-    } catch (error: unknown) {
-      console.error('No se pudo enviar la solicitud de acceso docente.', error);
-      this.error = this.mensajeServicio(error, 'No se pudo enviar la solicitud. Revisa el nombre de la institución e intenta nuevamente.');
-    } finally {
-      this.solicitandoDocente = false;
     }
   }
 

@@ -40,7 +40,7 @@ export class TeacherPage implements OnInit {
     try {
       const usuario = await this.auth.esperarSesion();
       if (!usuario) return;
-      const perfil = await this.auth.obtenerPerfil(usuario);
+      const perfil = await this.auth.obtenerPerfil();
       if (!perfil || perfil.rol !== 'docente' || !perfil.institucion) {
         this.error = 'Tu cuenta docente aún necesita aprobación institucional. Contacta al administrador de tu institución.';
         return;
