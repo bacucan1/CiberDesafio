@@ -1,8 +1,75 @@
-.teacher-shell { --ink: #241b3b; --muted: #746b84; --line: #e5ddef; margin: 0 auto; max-width: 1100px; padding: 56px 24px 80px; }
-ion-content { --background: #f8f5fc; } ion-toolbar { --background: #f8f5fc; --color: var(--ink); --border-width: 0; }
-.eyebrow { color: #7453c8; font-size: .7rem; font-weight: 850; letter-spacing: .12em; } h1 { color: var(--ink); font-size: clamp(2.5rem, 6vw, 4rem); letter-spacing: -.04em; margin: 12px 0; } .intro { color: var(--muted); font-size: 1.05rem; line-height: 1.5; margin-bottom: 34px; max-width: 650px; }
-.overview { background: #382459; border-radius: 12px; color: white; display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 24px; overflow: hidden; } .overview > div { padding: 22px; } .overview > div + div { border-left: 1px solid rgba(255,255,255,.16); } .overview span, .overview small { color: #c8bce1; display: block; font-size: .68rem; } .overview strong { display: block; font-size: 1.75rem; margin: 8px 0 4px; } .overview small { font-size: .72rem; }
-.analysis-layout { display: grid; gap: 20px; grid-template-columns: 1.35fr .8fr; } ion-card { border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 34px rgba(56, 36, 89, .07); margin: 0; } ion-card-header { padding: 24px 24px 10px; } ion-card-content { padding: 16px 24px 24px; } ion-card-title { color: var(--ink); font-size: 1.5rem; margin-top: 12px; }
-.topic-row { margin: 0 0 19px; } .topic-row > div:first-child { color: var(--muted); display: flex; font-size: .82rem; justify-content: space-between; margin-bottom: 7px; } .topic-row strong { color: var(--ink); } .bar-track { background: #eee8f5; border-radius: 9px; height: 9px; overflow: hidden; } .bar-track span { background: linear-gradient(90deg, #7453c8, #b18be9); border-radius: inherit; display: block; height: 100%; }
-.insight-card p { color: var(--muted); font-size: .88rem; line-height: 1.55; } .insight-stat { align-items: baseline; display: flex; gap: 9px; margin: 24px 0; } .insight-stat strong { color: #e16d57; font-size: 2.5rem; } .insight-stat span { color: var(--muted); font-size: .78rem; } ion-button { --border-radius: 7px; --color: #7453c8; }
-@media (max-width: 720px) { .teacher-shell { padding: 34px 16px 60px; } .overview { grid-template-columns: 1fr; } .overview > div + div { border-left: 0; border-top: 1px solid rgba(255,255,255,.16); } .analysis-layout { grid-template-columns: 1fr; } }
+.teacher-shell { --ink: #eee8d8; --muted: #a49db8; --line: rgba(214, 189, 116, 0.35); color: #eee8d8; margin: 0 auto; max-width: 1100px; padding: 48px 24px 80px; }
+ion-content { --background: #0a0c18; }
+ion-toolbar { --background: #0a0c18; --color: #eee8d8; --border-width: 0; }
+.eyebrow { color: #7453c8; font-size: .68rem; font-weight: 850; letter-spacing: .12em; margin: 0 0 10px; }
+h1 { font-size: clamp(2.4rem, 5vw, 3.8rem); letter-spacing: -.045em; margin: 9px 0; }
+.intro { color: var(--muted); font-size: 1rem; line-height: 1.55; margin: 0 0 30px; max-width: 690px; }
+.teacher-message { background: #fff0f0; border-radius: 9px; color: #7d2b3a; font-size: .84rem; margin: 14px 0; padding: 13px 16px; }
+.teacher-message.success { background: #ecfaf3; color: #1d6b45; }
+.group-tools { background: #fff; color: #241b3b; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 14px 34px rgba(56, 36, 89, .055); margin-bottom: 35px; padding: 24px; }
+.group-tools-heading, .results-heading { align-items: center; display: flex; gap: 18px; justify-content: space-between; }
+.group-tools-heading h2, .results-heading h2 { font-size: 1.55rem; letter-spacing: -.025em; margin: 0; }
+.group-tools > p { color: #6f6484; font-size: .83rem; line-height: 1.55; margin: 10px 0 18px; }
+.privacy-chip { align-items: center; background: #f1efff; border-radius: 20px; color: #5c4dbd; display: inline-flex; flex: 0 0 auto; font-size: .68rem; gap: 6px; padding: 8px 11px; }
+.privacy-chip ion-icon { font-size: 15px; }
+.invite-form { align-items: flex-end; display: grid; gap: 12px; grid-template-columns: minmax(180px, 1.2fr) minmax(110px, .55fr) auto; }
+.invite-form ion-item, .group-picker { --background: #f8f5fc; --border-color: #e5ddef; --border-radius: 8px; --padding-start: 12px; border: 1px solid var(--line); border-radius: 8px; min-height: 54px; }
+.invite-form ion-label, .group-picker ion-label { color: #6f6484; font-size: .71rem; }
+.invite-form ion-input, .invite-form ion-select, .group-picker ion-select { color: #241b3b; font-size: .84rem; }
+ion-button { --border-radius: 8px; --color: #654fc7; font-size: .77rem; font-weight: 700; }
+.invite-form > ion-button { --background: #6252db; --color: white; margin: 0; min-height: 52px; }
+.new-code { align-items: center; background: #f1efff; border: 1px solid #ddd8ff; border-radius: 10px; display: flex; gap: 14px; justify-content: space-between; margin-top: 17px; padding: 14px 16px; }
+.new-code span, .new-code strong { display: block; }
+.new-code span { color: #6f6484; font-size: .64rem; font-weight: 760; letter-spacing: .09em; margin-bottom: 5px; }
+.new-code strong { color: #34266e; font-size: 1.2rem; letter-spacing: .13em; }
+.invite-list { border-top: 1px solid #eee8f5; margin-top: 22px; padding-top: 17px; }
+.invite-list h3 { font-size: .94rem; margin: 0 0 10px; }
+.invite-row { align-items: center; border-bottom: 1px solid #f0edf4; display: flex; gap: 10px; justify-content: space-between; padding: 10px 0; }
+.invite-row > div { min-width: 0; }
+.invite-row strong, .invite-row span { display: block; overflow-wrap: anywhere; }
+.invite-row strong { font-size: .8rem; margin-bottom: 4px; }
+.invite-row span { color: #6f6484; font-size: .69rem; }
+.invite-row ion-button { flex: 0 0 auto; }
+.results-section { margin-top: 10px; }
+.results-heading { margin-bottom: 17px; }
+.group-picker { flex: 0 1 240px; }
+.overview { background: #382459; border-radius: 12px; color: white; display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 20px; overflow: hidden; }
+.overview > div { min-width: 0; padding: 21px; }
+.overview > div + div { border-left: 1px solid rgba(255,255,255,.16); }
+.overview span, .overview small { color: #c8bce1; display: block; font-size: .65rem; }
+.overview strong { display: block; font-size: 1.65rem; margin: 8px 0 4px; overflow-wrap: anywhere; }
+.overview small { font-size: .7rem; }
+.analysis-layout { display: grid; gap: 20px; grid-template-columns: 1.35fr .8fr; }
+ion-card { border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 34px rgba(56, 36, 89, .06); color: #241b3b; margin: 0; }
+ion-card-header { padding: 23px 23px 9px; }
+ion-card-content { padding: 15px 23px 23px; }
+ion-card-title { color: #241b3b; font-size: 1.42rem; margin-top: 10px; }
+.topic-row { margin-bottom: 20px; }
+.topic-row:last-child { margin-bottom: 0; }
+.topic-row > div:first-child { color: #6f6484; display: flex; font-size: .82rem; justify-content: space-between; margin-bottom: 7px; }
+.topic-row strong { color: #241b3b; }
+.topic-row small { color: #6f6484; display: block; font-size: .67rem; margin-top: 6px; }
+.bar-track { background: #eee8f5; border-radius: 9px; height: 9px; overflow: hidden; }
+.bar-track span { background: linear-gradient(90deg, #7453c8, #b18be9); border-radius: inherit; display: block; height: 100%; }
+.insight-card p { color: #6f6484; font-size: .85rem; line-height: 1.6; }
+.empty-state { align-items: center; background: white; border: 1px dashed #d8cfe5; border-radius: 13px; color: #6f6484; display: flex; flex-direction: column; padding: 42px 20px; text-align: center; }
+.empty-state > ion-icon { color: #7453c8; font-size: 30px; }
+.empty-state h3 { color: #241b3b; font-size: 1.1rem; margin: 14px 0 6px; }
+.empty-state p { font-size: .82rem; line-height: 1.55; margin: 0; max-width: 500px; }
+@media (max-width: 760px) {
+  .teacher-shell { padding: 34px 16px 60px; }
+  .group-tools-heading, .results-heading { align-items: flex-start; flex-direction: column; }
+  .privacy-chip { white-space: normal; }
+  .invite-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .invite-form > ion-button { grid-column: 1 / -1; }
+  .overview { grid-template-columns: 1fr; }
+  .overview > div + div { border-left: 0; border-top: 1px solid rgba(255,255,255,.16); }
+  .analysis-layout { grid-template-columns: 1fr; }
+  .group-picker { flex-basis: auto; width: 100%; }
+}
+@media (max-width: 440px) {
+  .group-tools { padding: 18px 14px; }
+  .invite-form { grid-template-columns: 1fr; }
+  .invite-form > ion-button { grid-column: auto; }
+  .new-code { align-items: flex-start; flex-direction: column; }
+}

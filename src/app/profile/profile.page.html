@@ -1,0 +1,115 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-button slot="start" fill="clear" [routerLink]="perfil?.rol === 'docente' ? '/docente' : '/home'">
+      Volver
+    </ion-button>
+    <ion-title>Mi perfil</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="profile-shell">
+    <p class="eyebrow">CUENTA CIBERDESAFÍO</p>
+    <h1>Tu perfil</h1>
+    <p class="intro">Consulta tus datos y mantén actualizada tu información personal.</p>
+
+    @if (cargando) {
+      <p role="status">Cargando tu perfil…</p>
+    } @else if (perfil) {
+      <section class="profile-card" aria-labelledby="account-heading">
+        <div class="profile-heading">
+          <div class="avatar" aria-hidden="true">{{ (perfil.nombre || perfil.uid).slice(0, 1).toUpperCase() }}</div>
+          <div>
+            <p class="eyebrow">PERFIL {{ perfil.rol === 'docente' ? 'DOCENTE' : 'ESTUDIANTE' }}</p>
+            <h2 id="account-heading">{{ perfil.nombre }}</h2>
+            <p>{{ usuario?.email || 'Correo no disponible' }}</p>
+          </div>
+        </div>
+
+        @if (error) { <ion-text color="danger"><p class="notice" role="alert">{{ error }}</p></ion-text> }
+        @if (mensaje) { <ion-text color="success"><p class="notice" role="status">{{ mensaje }}</p></ion-text> }
+
+        <div class="profile-form">
+          <ion-list lines="full">
+            <ion-item>
+              <ion-label position="stacked">Nombre para mostrar</ion-label>
+              <ion-input name="nombre" [(ngModel)]="nombre" autocomplete="name" maxlength="100" required></ion-input>
+            </ion-item>
+            <ion-item>
+              <ion-label position="stacked">Correo de la cuenta</ion-label>
+              <ion-input [value]="usuario?.email || 'No disponible'" readonly></ion-input>
+            </ion-item>
+          </ion-list>
+
+          <div class="section-title"><h2>Información académica</h2><p>Estos datos los administra el equipo de la institución.</p></div>
+          <div class="details-grid">
+            <article><span>Rol</span><strong>{{ perfil.rol === 'docente' ? 'Docente' : 'Estudiante' }}</strong></article>
+            <article><span>Institución</span><strong>{{ perfil.institucion || 'Sin asignar' }}</strong></article>
+            <article><span>Grado</span><strong>{{ perfil.grado ?? 'Sin asignar' }}</strong></article>
+            <article><span>Grupo</span><strong>{{ perfil.grupo || 'Sin asignar' }}</strong></article>
+            <article><span>Inicio de sesión</span><strong>{{ proveedor }}</strong></article>
+            <article><span>Cuenta creada</span><strong>{{ fechaRegistro }}</strong></article>
+          </div>
+
+          @if (!perfil.institucion || (perfil.rol === 'estudiante' && (!perfil.grado || !perfil.grupo))) {
+            <p class="profile-hint">Si falta información de tu institución, grado o grupo, solicita su actualización al equipo administrador.</p>
+          }
+
+          @if (perfil.rol === 'estudiante') {
+            @if (!perfil.institucion) {
+              <section class="enrollment-section" aria-labelledby="enrollment-heading">
+              <div class="section-title">
+                <h2 id="enrollment-heading">Vincúlate con tu grupo</h2>
+                <p>Solicita el código de invitación a tu docente. El código verifica tu institución y grupo.</p>
+              </div>
+              <div class="enrollment-form">
+                <ion-item>
+                  <ion-label position="stacked">Código de invitación</ion-label>
+                  <ion-input name="codigoGrupo" [(ngModel)]="codigoGrupo" autocomplete="off" autocapitalize="characters" maxlength="24" required></ion-input>
+                </ion-item>
+                <ion-button type="button" [disabled]="vinculando || !codigoGrupo.trim()" (click)="vincularGrupo()">
+                  {{ vinculando ? 'Verificando…' : 'Vincularme al grupo' }}
+                </ion-button>
+              </div>
+              </section>
+            }
+
+            <section class="enrollment-section teacher-application" aria-labelledby="teacher-application-heading">
+              <div class="section-title">
+                <h2 id="teacher-application-heading">¿Eres docente?</h2>
+                @if (estadoSolicitudDocente === 'pendiente') {
+                  <p>Tu solicitud para <strong>{{ institucionSolicitada }}</strong> está pendiente de aprobación. Tu cuenta conserva el acceso de estudiante hasta que la institución la apruebe.</p>
+                } @else if (estadoSolicitudDocente === 'aprobada') {
+                  <p>Tu solicitud fue aprobada. Cierra sesión y vuelve a ingresar para actualizar los permisos de tu cuenta.</p>
+                } @else if (estadoSolicitudDocente === 'rechazada') {
+                  <p>La solicitud anterior no fue aprobada. Contacta al administrador de tu institución antes de solicitar nuevamente.</p>
+                } @else {
+                  <p>Solicita acceso docente. La institución debe verificar tu cuenta antes de habilitar funciones de seguimiento.</p>
+                }
+              </div>
+              @if (!estadoSolicitudDocente) {
+                <ion-item>
+                  <ion-label position="stacked">Institución educativa</ion-label>
+                  <ion-input name="institucionSolicitada" [(ngModel)]="institucionSolicitada" autocomplete="organization" maxlength="120" required></ion-input>
+                </ion-item>
+                <ion-button type="button" fill="outline" [disabled]="solicitandoDocente || institucionSolicitada.trim().length < 3" (click)="solicitarInstitucion()">
+                  {{ solicitandoDocente ? 'Enviando solicitud…' : 'Solicitar acceso docente' }}
+                </ion-button>
+              }
+            </section>
+          }
+
+          <div class="actions">
+            <ion-button type="button" [disabled]="guardando || !nombre.trim()" (click)="guardar()">
+              {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
+            </ion-button>
+            <ion-button type="button" fill="outline" [disabled]="guardando" (click)="cancelarEdicion()">Cancelar</ion-button>
+            <ion-button type="button" fill="clear" color="medium" (click)="cerrarSesion()">Cerrar sesión</ion-button>
+          </div>
+        </div>
+      </section>
+    } @else if (error) {
+      <ion-text color="danger"><p class="notice" role="alert">{{ error }}</p></ion-text>
+    }
+  </main>
+</ion-content>

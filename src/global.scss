@@ -35,3 +35,16 @@
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import '@ionic/angular/css/palettes/dark.system.css';
+
+/* Tema estelar compartido para toda la aplicacion: fondo cósmico con degradados. */
+ion-app {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(112, 86, 200, 0.38), transparent 55%),
+    radial-gradient(circle at 85% 90%, rgba(103, 230, 192, 0.12), transparent 50%),
+    radial-gradient(circle at 8% 70%, rgba(112, 86, 200, 0.2), transparent 55%),
+    #090a18;
+}
+
+body {
+  background: #090a18;
+}

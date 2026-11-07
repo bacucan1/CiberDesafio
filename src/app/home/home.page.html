@@ -4,6 +4,9 @@
     <ion-button slot="end" fill="clear" [attr.aria-label]="sonidoActivo ? 'Desactivar sonido' : 'Activar sonido'" (click)="toggleSonido()">
       <ion-icon [name]="sonidoActivo ? 'volume-high' : 'volume-mute'"></ion-icon>
     </ion-button>
+    <ion-button slot="end" fill="clear" routerLink="/perfil" aria-label="Mi perfil">
+      <ion-icon name="person-circle"></ion-icon>
+    </ion-button>
   </ion-toolbar>
 </ion-header>
 
@@ -14,6 +17,7 @@
         <p class="eyebrow">CYBERSHIELD TEAM · RUTA ESTUDIANTE</p>
         <h1>Cada decisión cambia tu historia.</h1>
         <p class="intro">Desliza, decide y descubre cómo tus acciones transforman la seguridad de toda tu comunidad.</p>
+        @if (errorPersistencia) { <p role="alert">{{ errorPersistencia }}</p> }
       </div>
       <div class="shield-mark"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon></div>
     </section>

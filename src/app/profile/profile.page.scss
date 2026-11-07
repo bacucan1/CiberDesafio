@@ -1,0 +1,41 @@
+.profile-shell { color: #eee8d8; margin: 0 auto; max-width: 860px; padding: 52px 24px 80px; }
+ion-content { --background: #0a0c18; }
+ion-toolbar { --background: #0a0c18; --color: #eee8d8; --border-width: 0; }
+.eyebrow { color: #7453c8; font-size: .7rem; font-weight: 850; letter-spacing: .12em; margin: 0 0 8px; }
+h1 { font-size: clamp(2.3rem, 6vw, 3.7rem); letter-spacing: -.04em; margin: 10px 0; }
+.intro { color: #a49db8; font-size: 1rem; line-height: 1.5; margin: 0 0 28px; }
+.profile-card { background: white; color: #241b3b; border: 1px solid #e5ddef; border-radius: 16px; box-shadow: 0 14px 34px rgba(56, 36, 89, .07); padding: 28px; }
+.profile-heading { align-items: center; border-bottom: 1px solid #eee8f5; display: flex; gap: 18px; padding-bottom: 24px; }
+.avatar { align-items: center; background: #382459; border-radius: 50%; color: white; display: flex; flex: 0 0 64px; font-size: 1.7rem; height: 64px; justify-content: center; }
+.profile-heading h2 { font-size: 1.45rem; margin: 0 0 4px; }
+.profile-heading p:last-child { color: #746b84; margin: 0; overflow-wrap: anywhere; }
+ion-list { background: transparent; margin: 14px 0 28px; }
+ion-item { --background: transparent; --padding-start: 0; }
+ion-input { --color: #241b3b; }
+.section-title { margin: 0 0 16px; }
+.section-title h2 { font-size: 1.15rem; margin: 0 0 5px; }
+.section-title p { color: #a49db8; font-size: .86rem; line-height: 1.5; margin: 0; }
+.profile-hint { background: #fff8e9; border-radius: 8px; margin-top: 16px; padding: 12px 14px; color: #6b5320; }
+.details-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.details-grid article { background: #f8f5fc; border: 1px solid #eee8f5; border-radius: 10px; min-width: 0; padding: 15px; }
+.details-grid span, .details-grid strong { display: block; overflow-wrap: anywhere; }
+.details-grid span { color: #746b84; font-size: .72rem; margin-bottom: 6px; }
+.details-grid strong { font-size: .92rem; color: #241b3b; }
+.profile-hint { background: #fff8e9; border-radius: 8px; margin-top: 16px; padding: 12px 14px; }
+.enrollment-section { border-top: 1px solid #eee8f5; margin-top: 26px; padding-top: 24px; }
+.enrollment-form { align-items: flex-end; display: flex; gap: 12px; margin-top: 12px; }
+.enrollment-form ion-item { flex: 1; }
+.teacher-application > ion-item { --background: transparent; --padding-start: 0; margin-top: 10px; }
+.teacher-application ion-button { margin: 14px 0 0; }
+.notice { border-radius: 8px; margin: 14px 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+ion-button { --border-radius: 7px; --color: #7453c8; }
+@media (max-width: 560px) {
+  .profile-shell { padding: 34px 16px 60px; }
+  .profile-card { padding: 20px 16px; }
+  .details-grid { grid-template-columns: 1fr; }
+  .actions { align-items: stretch; flex-direction: column; }
+  .actions ion-button { margin: 0; }
+  .enrollment-form { align-items: stretch; flex-direction: column; }
+  .enrollment-form ion-button { margin: 8px 0 0; }
+}
