@@ -3,6 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonButton, IonContent, IonIcon, IonInput } from '@ionic/angular';
 import { addIcons } from 'ionicons';
+import { logoGoogle } from 'ionicons/icons';
+import { AuthService, CodigoDocenteInvalidoError } from '../core/services/auth.service';
+import { RolUsuario } from '../core/models/domain.models';
 import { alertCircle, arrowForward, business, checkmarkCircle, eye, eyeOff, informationCircle, key, lockClosed, logoGoogle, mail, people, person, school, shieldCheckmark } from 'ionicons/icons';
 import { AuthService } from '../core/services/auth.service';
 
@@ -17,6 +20,10 @@ export class LoginPage {
   correo = '';
   clave = '';
   nombre = '';
+  codigoInvitacion = '';
+  rol: RolUsuario = 'estudiante';
+  registrando = false;
+  error = this.auth.consumirErrorAcceso();
   institucion = '';
   registrando = false;
   solicitandoDocencia = false;
@@ -52,6 +59,12 @@ export class LoginPage {
     }
     this.cargando = true;
     try {
+      if (this.registrando) await this.auth.registrar(this.nombre, this.correo, this.clave, this.rol, this.codigoInvitacion.trim());
+      else await this.auth.ingresar(this.correo, this.clave);
+    } catch (error) {
+      this.error = error instanceof CodigoDocenteInvalidoError
+        ? 'El código de invitación no es válido o ya no está activo.'
+        : 'No pudimos validar tus datos. Revisa el correo y la contraseña.';
       if (this.registrando) {
         await this.auth.registrar(
           this.nombre.trim(),
@@ -93,6 +106,12 @@ export class LoginPage {
     }
     this.cargando = true;
     try {
+      // Al ingresar (no registrar) se ignora el rol elegido: manda el perfil guardado.
+      await this.auth.registrarseConGoogle(this.registrando ? this.rol : 'estudiante', this.registrando ? this.codigoInvitacion.trim() : undefined);
+    } catch (error) {
+      this.error = error instanceof CodigoDocenteInvalidoError
+        ? 'El código de invitación no es válido o ya no está activo.'
+        : 'No pudimos completar el registro con Google. Intenta nuevamente.';
       await this.auth.recuperarClave(correo);
       this.mensaje = 'Si existe una cuenta con ese correo, recibirás un enlace para cambiar tu contraseña.';
     } catch (error: unknown) {

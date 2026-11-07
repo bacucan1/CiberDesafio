@@ -4,6 +4,7 @@ import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSub
 import { addIcons } from 'ionicons';
 import { arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, key, location, lockClosed, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi } from 'ionicons/icons';
 import { Decision, Escenario, NodoDecision, OpcionDecision } from '../core/models/domain.models';
+import { AuthService } from '../core/services/auth.service';
 import { SimulationService } from '../core/services/simulation.service';
 import { DecisionService } from '../core/services/decision.service';
 import { ScenarioService } from '../core/services/scenario.service';
@@ -16,6 +17,7 @@ import { AuthService } from '../core/services/auth.service';
   imports: [RouterLink, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar],
 })
 export class HomePage {
+  private readonly auth = inject(AuthService);
   private readonly simulation = inject(SimulationService);
   private readonly decisionStore = inject(DecisionService);
   private readonly scenarioCatalog = inject(ScenarioService);
@@ -157,6 +159,7 @@ export class HomePage {
       return;
     }
 
+    const decision = this.simulation.crearDecision(this.escenario.id, this.nodoActual, this.opcionSeleccionada, this.auth.usuarioActual()?.uid ?? '');
     this.errorPersistencia = '';
     const decision = this.simulation.crearDecision(this.escenario.id, this.nodoActual, this.opcionSeleccionada, uid);
     decision.situacion = this.nodoActual.pregunta;
