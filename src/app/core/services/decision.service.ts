@@ -24,8 +24,27 @@ export class DecisionService {
       if (datosPerfil['rol'] !== 'estudiante') {
         throw new Error('Solo los estudiantes pueden registrar resultados de juego.');
       }
+
+      const resultadoEstudianteRef = doc(perfilRef, 'resultados', escenario.id);
+      const resultadoEstudiante = await transaction.get(resultadoEstudianteRef);
+      const aciertosEstudiante = Number(resultadoEstudiante.data()?.['aciertos'] ?? 0) + (opcion.correcta ? 1 : 0);
+      const decisionesEstudiante = Number(resultadoEstudiante.data()?.['decisiones'] ?? 0) + 1;
+      const puntosEstudiante = Number(resultadoEstudiante.data()?.['puntos'] ?? 0) + (decision.puntuacion ?? (opcion.correcta ? 100 : 25));
+      const resultadoEstudianteDatos = {
+        escenarioId: escenario.id,
+        eje: escenario.eje,
+        aciertos: aciertosEstudiante,
+        decisiones: decisionesEstudiante,
+        porcentajeAciertos: Math.round((aciertosEstudiante / decisionesEstudiante) * 100),
+        puntos: puntosEstudiante,
+        fechaActualizacion: new Date().toISOString(),
+      };
+
       const grupoId = datosPerfil['grupoId'];
-      if (typeof grupoId !== 'string' || !grupoId) return;
+      if (typeof grupoId !== 'string' || !grupoId) {
+        transaction.set(resultadoEstudianteRef, resultadoEstudianteDatos);
+        return;
+      }
 
       const resultadoRef = doc(this.firestore, 'resultados_agregados', `${grupoId}_${escenario.eje}`);
       const participanteRef = doc(resultadoRef, 'participantes', decision.uid);
@@ -48,6 +67,7 @@ export class DecisionService {
         throw new Error('El perfil vinculado no tiene los datos institucionales requeridos.');
       }
 
+      transaction.set(resultadoEstudianteRef, resultadoEstudianteDatos);
       transaction.set(participanteRef, {
         aciertos: aciertosParticipante,
         decisiones: decisionesParticipante,

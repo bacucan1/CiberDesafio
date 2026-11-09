@@ -1,8 +1,8 @@
-import { Component, inject } from '@angular/core';
+import { Component, ElementRef, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, key, location, lockClosed, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi } from 'ionicons/icons';
+import { arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, key, location, lockClosed, logOut, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi } from 'ionicons/icons';
 import { Decision, Escenario, NodoDecision, OpcionDecision } from '../core/models/domain.models';
 import { AuthService } from '../core/services/auth.service';
 import { SimulationService } from '../core/services/simulation.service';
@@ -16,6 +16,7 @@ import { ScenarioService } from '../core/services/scenario.service';
   imports: [RouterLink, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar],
 })
 export class HomePage {
+  private readonly host = inject(ElementRef<HTMLElement>);
   private readonly auth = inject(AuthService);
   private readonly simulation = inject(SimulationService);
   private readonly decisionStore = inject(DecisionService);
@@ -35,22 +36,67 @@ export class HomePage {
   reputacion = 50;
   sonidoActivo = false;
   animandoCarta = false;
+  guardandoDecision = false;
   desplazamientoCarta = 0;
   arrastrandoCarta = false;
   errorPersistencia = '';
+  private decisionPendiente: Decision | null = null;
   private aciertosConocidos = 0;
   private inicioGesto?: number;
   private gestoConfirmado = false;
   desplazamientoFeedback = 0;
   private inicioGestoFeedback?: number;
   private inicioDeslizamiento?: number;
+  cerrandoSesion = false;
+  errorSesion = '';
 
   constructor() {
-    addIcons({ arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, key, location, lockClosed, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi });
+    addIcons({ arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, key, location, lockClosed, logOut, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi });
+  }
+
+  ionViewWillLeave(): void {
+    const page = this.host.nativeElement;
+    const focusedElement = document.activeElement;
+    if (!(focusedElement instanceof HTMLElement) || !page.contains(focusedElement)) return;
+
+    let deepestFocusedElement: Element | null = focusedElement;
+    while (deepestFocusedElement instanceof HTMLElement && deepestFocusedElement.shadowRoot?.activeElement) {
+      deepestFocusedElement = deepestFocusedElement.shadowRoot.activeElement;
+    }
+    if (deepestFocusedElement instanceof HTMLElement) deepestFocusedElement.blur();
+  }
+
+  async cerrarSesion(): Promise<void> {
+    if (this.cerrandoSesion) return;
+    this.cerrandoSesion = true;
+    this.errorSesion = '';
+    try {
+      await this.auth.salir();
+    } catch (error: unknown) {
+      console.error('No se pudo cerrar la sesión del estudiante.', error);
+      this.errorSesion = 'No se pudo cerrar la sesión. Intenta nuevamente.';
+      this.cerrandoSesion = false;
+    }
+  }
+
+  async guardarDecisionPendiente(): Promise<void> {
+    const decision = this.decisionPendiente;
+    if (!decision || this.guardandoDecision) return;
+    this.guardandoDecision = true;
+    this.errorPersistencia = '';
+    try {
+      await this.decisionStore.guardar(decision);
+      this.decisionPendiente = null;
+    } catch (error: unknown) {
+      console.error('No se pudo guardar la decisión del estudiante.', error);
+      this.errorPersistencia = 'Esta decisión no pudo guardarse. Revisa tu conexión e inténtalo de nuevo.';
+    } finally {
+      this.guardandoDecision = false;
+    }
   }
 
   seleccionarRuta(ruta: Escenario): void {
-    if (this.escenario.id === ruta.id) return;
+    if (this.escenario.id === ruta.id || this.decisionPendiente) return;
     this.escenario = ruta;
     this.reiniciar();
   }
@@ -70,6 +116,7 @@ export class HomePage {
   }
 
   elegirOpcion(opcion: OpcionDecision): void {
+    if (this.mostrandoRetroalimentacion || this.completado || this.guardandoDecision || this.decisionPendiente) return;
     this.seleccionarOpcion(opcion);
     this.confirmarDecision();
   }
@@ -83,7 +130,8 @@ export class HomePage {
   }
 
   iniciarGesto(event: PointerEvent): void {
-    if (this.mostrandoRetroalimentacion || this.completado) return;
+    if (this.mostrandoRetroalimentacion || this.completado || this.guardandoDecision
+      || (event.target instanceof Element && event.target.closest('button, ion-button, a, input, select, ion-input, ion-select'))) return;
     this.inicioGesto = event.clientX;
     this.arrastrandoCarta = true;
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
@@ -114,6 +162,7 @@ export class HomePage {
   }
 
   iniciarGestoFeedback(event: PointerEvent): void {
+    if (event.target instanceof Element && event.target.closest('button, ion-button, a, input, select, ion-input, ion-select')) return;
     this.inicioGestoFeedback = event.clientX;
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   }
@@ -150,7 +199,8 @@ export class HomePage {
   }
 
   confirmarDecision(): void {
-    if (!this.opcionSeleccionada) return;
+    if (!this.opcionSeleccionada || this.mostrandoRetroalimentacion || this.completado
+      || this.guardandoDecision || this.decisionPendiente) return;
     const uid = this.auth.usuarioActual()?.uid;
     if (!uid) {
       this.errorPersistencia = 'Tu sesión no está activa. Vuelve a iniciar sesión para guardar tu progreso.';
@@ -165,10 +215,8 @@ export class HomePage {
     if (decision.correcta) {
       this.aciertosConocidos += 1;
     }
-    void this.decisionStore.guardar(decision).catch((error: unknown) => {
-      console.error('No se pudo guardar la decisión del estudiante.', error);
-      this.errorPersistencia = 'Esta decisión no pudo guardarse. Revisa tu conexión antes de continuar.';
-    });
+    this.decisionPendiente = decision;
+    void this.guardarDecisionPendiente();
     this.recompensaActual = decision.correcta ? 100 : 25;
     this.puntos += this.recompensaActual;
     this.racha = decision.correcta ? this.racha + 1 : 0;
@@ -181,6 +229,7 @@ export class HomePage {
   }
 
   continuar(): void {
+    if (!this.mostrandoRetroalimentacion || this.guardandoDecision || this.decisionPendiente) return;
     this.desplazamientoFeedback = 0;
     const siguienteNodoId = this.opcionSeleccionada?.siguienteNodoId;
     if (!siguienteNodoId) {
@@ -220,6 +269,10 @@ export class HomePage {
 
   get progreso(): number {
     return Math.min(this.decisiones.length / this.totalPasos, 1);
+  }
+
+  get guardadoPendiente(): boolean {
+    return this.decisionPendiente !== null;
   }
 
   get totalPasos(): number {

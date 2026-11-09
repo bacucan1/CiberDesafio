@@ -12,9 +12,13 @@ import {
   increment,
   query,
   runTransaction,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
+import type { Unsubscribe } from 'firebase/firestore';
 import { AuthService } from './auth.service';
 import { firebaseApp } from '../firebase.config';
 
@@ -203,9 +207,14 @@ export class InstitutionalService {
 
   async listarGrupos(): Promise<TeacherGroup[]> {
     const uid = this.usuarioId();
+    const perfil = await this.authService.obtenerPerfil();
+    if (!perfil || perfil.uid !== uid || perfil.rol !== 'docente' || !perfil.institucion) {
+      throw new Error('Se requiere un perfil docente aprobado y una institución asignada.');
+    }
     const snapshot = await getDocs(query(
       collection(this.firestore, 'grupos'),
       where('profesores', 'array-contains', uid),
+      where('institucion', '==', perfil.institucion),
     ));
     return snapshot.docs.map((item) => {
       const data = item.data();
@@ -228,18 +237,95 @@ export class InstitutionalService {
       collection(this.firestore, 'resultados_agregados'),
       where('institucion', '==', institucion),
     ));
-    return snapshot.docs.map((item) => {
+    return this.mapearResultados(snapshot.docs);
+  }
+
+  async solicitarActualizacionPerfil(datos: {
+    institucion: string;
+    grupo?: string;
+    grado?: number;
+  }): Promise<void> {
+    const uid = this.usuarioId();
+    const perfil = await this.authService.obtenerPerfil();
+    if (!perfil || perfil.uid !== uid) {
+      throw new Error('No encontramos tu perfil para enviar la solicitud.');
+    }
+    const institucion = datos.institucion.trim().replace(/\s+/g, ' ');
+    const grupo = datos.grupo?.trim().replace(/\s+/g, ' ');
+    if (institucion.length < 3 || institucion.length > 100) {
+      throw new Error('La institución debe tener entre 3 y 100 caracteres.');
+    }
+
+    if (datos.grado !== undefined && (!Number.isInteger(datos.grado) || datos.grado < 9 || datos.grado > 11)) {
+      throw new Error('El grado debe estar entre 9 y 11.');
+    }
+    let solicitud: { institucion: string; grupo?: string; grado?: number };
+    if (perfil.rol === 'docente') {
+      solicitud = { institucion };
+    } else {
+      if (!grupo || grupo.length < 2 || grupo.length > 60) {
+        throw new Error('El grupo debe tener entre 2 y 60 caracteres.');
+      }
+      solicitud = {
+        institucion,
+        grupo,
+        ...(datos.grado !== undefined ? { grado: datos.grado } : {}),
+      };
+    }
+
+    await setDoc(doc(this.firestore, 'solicitudes_actualizacion_perfil', uid), {
+      uid,
+      rol: perfil.rol,
+      nombre: perfil.nombre,
+      ...solicitud,
+      estado: 'pendiente',
+      fechaSolicitud: serverTimestamp(),
+    }, { merge: true });
+  }
+
+  observarResultados(
+    alActualizar: (resultados: GroupResults[]) => void,
+    alFallar: (error: Error) => void,
+  ): Unsubscribe {
+    const uid = this.usuarioId();
+    const perfil = this.authService.obtenerPerfil();
+    let cancelar: Unsubscribe | undefined;
+    let cancelada = false;
+    void perfil.then((usuario) => {
+      if (cancelada) return;
+      if (!usuario || usuario.uid !== uid || usuario.rol !== 'docente' || !usuario.institucion) {
+        throw new Error('Se requiere un perfil docente aprobado y una institución asignada.');
+      }
+      cancelar = onSnapshot(query(
+        collection(this.firestore, 'resultados_agregados'),
+        where('institucion', '==', usuario.institucion),
+      ), (snapshot) => {
+        alActualizar(this.mapearResultados(snapshot.docs));
+      }, (error) => {
+        alFallar(error);
+      });
+    }).catch((error: unknown) => {
+      if (!cancelada) alFallar(error instanceof Error ? error : new Error('No se pudieron consultar los resultados.'));
+    });
+    return () => {
+      cancelada = true;
+      cancelar?.();
+    };
+  }
+
+  private mapearResultados(documentos: { data(): Record<string, unknown> }[]): GroupResults[] {
+    return documentos.map((item) => {
       const data = item.data();
       return {
-        totalAciertos: data['totalAciertos'],
-        totalDecisiones: data['totalDecisiones'],
-        grupo: data['grupo'],
+        totalAciertos: data['totalAciertos'] as number,
+        totalDecisiones: data['totalDecisiones'] as number,
+        grupo: data['grupo'] as string,
         ...(typeof data['grado'] === 'number' ? { grado: data['grado'] } : {}),
-        institucion: data['institucion'],
-        eje: data['eje'],
-        porcentajeAciertos: data['porcentajeAciertos'],
-        estudiantes: data['estudiantes'],
-        fechaCalculo: data['fechaCalculo'],
+        institucion: data['institucion'] as string,
+        eje: data['eje'] as string,
+        porcentajeAciertos: data['porcentajeAciertos'] as number,
+        estudiantes: data['estudiantes'] as number,
+        fechaCalculo: data['fechaCalculo'] as string,
       };
     });
   }

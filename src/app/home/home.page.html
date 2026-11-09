@@ -7,6 +7,9 @@
     <ion-button slot="end" fill="clear" routerLink="/perfil" aria-label="Mi perfil">
       <ion-icon name="person-circle"></ion-icon>
     </ion-button>
+    <ion-button slot="end" fill="clear" [disabled]="cerrandoSesion" (click)="cerrarSesion()" aria-label="Cerrar sesión">
+      <ion-icon name="log-out"></ion-icon>
+    </ion-button>
   </ion-toolbar>
 </ion-header>
 
@@ -17,7 +20,8 @@
         <p class="eyebrow">CYBERSHIELD TEAM · RUTA ESTUDIANTE</p>
         <h1>Cada decisión cambia tu historia.</h1>
         <p class="intro">Desliza, decide y descubre cómo tus acciones transforman la seguridad de toda tu comunidad.</p>
-        @if (errorPersistencia) { <p role="alert">{{ errorPersistencia }}</p> }
+        @if (errorSesion) { <p role="alert">{{ errorSesion }}</p> }
+        @if (errorPersistencia && !mostrandoRetroalimentacion) { <p role="alert">{{ errorPersistencia }}</p> }
       </div>
       <div class="shield-mark"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon></div>
     </section>
@@ -87,8 +91,10 @@
               <div class="feedback-topline"><span class="feedback-label">{{ opcionSeleccionada.correcta ? 'BUENA DECISIÓN' : 'REVISA ESTA DECISIÓN' }}</span><span class="xp-reward"><ion-icon name="star"></ion-icon> +{{ recompensaActual }} XP</span></div>
               <h2>{{ opcionSeleccionada.consecuencia }}</h2>
               <p>{{ opcionSeleccionada.explicacion }}</p>
+              @if (guardandoDecision) { <p role="status">Guardando tu progreso…</p> }
+              @if (errorPersistencia) { <p role="alert">{{ errorPersistencia }}</p><ion-button fill="outline" (click)="guardarDecisionPendiente()">Reintentar guardado</ion-button> }
               <span class="feedback-swipe-hint"><ion-icon name="arrow-forward"></ion-icon> Desliza a la derecha para continuar</span>
-              <ion-button (click)="continuar()">Continuar <ion-icon slot="end" name="arrow-forward"></ion-icon></ion-button>
+              <ion-button [disabled]="guardandoDecision || guardadoPendiente" (click)="continuar()">Continuar <ion-icon slot="end" name="arrow-forward"></ion-icon></ion-button>
             </div>
           } @else {
             <div class="question-heading"><span class="step-number">{{ decisiones.length + 1 }}</span><div><p class="step-label">NUEVA SITUACIÓN</p><h2>{{ nodoActual.pregunta }}</h2></div></div>

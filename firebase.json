@@ -1,4 +1,16 @@
 {
   "firestore": { "rules": "firestore.rules" },
-  "hosting": { "public": "www", "ignore": ["firebase.json", "**/.*", "**/node_modules/**"], "rewrites": [{ "source": "**", "destination": "/index.html" }] }
+  "hosting": {
+    "public": "www",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+        ]
+      }
+    ],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  }
 }

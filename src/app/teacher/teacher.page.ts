@@ -1,12 +1,16 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonSelect, IonSelectOption, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { barChart, people, shieldCheckmark } from 'ionicons/icons';
+import { barChart, logOut, people, shieldCheckmark } from 'ionicons/icons';
+import type { Unsubscribe } from 'firebase/firestore';
 import { AuthService } from '../core/services/auth.service';
 import { GroupInvite, GroupResults, InstitutionalService, TeacherGroup } from '../core/services/institutional.service';
+import { OperationTimeoutError, remainingTime, withTimeout } from '../core/utils/async.utils';
+
+const TIMEOUT_CARGA_MS = 8_000;
 
 @Component({
   selector: 'app-teacher',
@@ -14,7 +18,7 @@ import { GroupInvite, GroupResults, InstitutionalService, TeacherGroup } from '.
   styleUrls: ['./teacher.page.scss'],
   imports: [DatePipe, FormsModule, RouterLink, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonSelect, IonSelectOption, IonText, IonTitle, IonToolbar],
 })
-export class TeacherPage implements OnInit {
+export class TeacherPage implements OnDestroy, OnInit {
   private readonly auth = inject(AuthService);
   private readonly institutional = inject(InstitutionalService);
 
@@ -31,37 +35,91 @@ export class TeacherPage implements OnInit {
   error = '';
   mensaje = '';
   private resultadosDelGrupoCache: { clave: string; datos: GroupResults[] } | null = null;
+  private cancelarObservacionResultados?: Unsubscribe;
+  private timeoutObservacionResultados?: ReturnType<typeof setTimeout>;
   actualizando = false;
+  cerrandoSesion = false;
 
   constructor() {
-    addIcons({ barChart, people, shieldCheckmark });
+    addIcons({ barChart, logOut, people, shieldCheckmark });
+  }
+
+  async cerrarSesion(): Promise<void> {
+    if (this.cerrandoSesion) return;
+    this.cerrandoSesion = true;
+    this.error = '';
+    try {
+      await this.auth.salir();
+    } catch (error: unknown) {
+      console.error('No se pudo cerrar la sesión docente.', error);
+      this.error = 'No se pudo cerrar la sesión. Intenta nuevamente.';
+      this.cerrandoSesion = false;
+    }
   }
 
   async ngOnInit(): Promise<void> {
+    const inicioCarga = Date.now();
     try {
-      const usuario = await this.auth.esperarSesion();
+      const usuario = await withTimeout(
+        this.auth.esperarSesion(),
+        remainingTime(inicioCarga, TIMEOUT_CARGA_MS),
+        'La conexión con Firebase está tardando demasiado. Revisa tu conexión e intenta cargar de nuevo.',
+      );
       if (!usuario) return;
-      const perfil = await this.auth.obtenerPerfil();
+      const perfil = await withTimeout(
+        this.auth.obtenerPerfil(),
+        remainingTime(inicioCarga, TIMEOUT_CARGA_MS),
+        'La información de tu perfil tardó más de 8 segundos. Revisa tu conexión e intenta cargar de nuevo.',
+      );
       if (!perfil || perfil.rol !== 'docente' || !perfil.institucion) {
-        this.error = 'No encontramos una institución de prueba en tu perfil. Vuelve a registrarte como docente.';
+        this.error = 'Falta completar o validar la institución de tu perfil. Abre “Mi perfil” para enviar los datos a revisión.';
         return;
       }
       this.institucion = perfil.institucion;
-      await this.cargarDatos();
+      await this.cargarDatos(remainingTime(inicioCarga, TIMEOUT_CARGA_MS));
+      this.cancelarObservacionResultados = this.institutional.observarResultados(
+        (resultados) => {
+          this.limpiarTimeoutObservacion();
+          this.resultados = resultados;
+          this.resultadosDelGrupoCache = null;
+        },
+        (error) => {
+          this.limpiarTimeoutObservacion();
+          console.error('No se pudo sincronizar en tiempo real el panel docente.', error);
+          this.error = 'No se pudieron sincronizar los resultados. Intenta actualizar en unos minutos.';
+        },
+      );
+      this.timeoutObservacionResultados = setTimeout(() => {
+        this.cancelarObservacionResultados?.();
+        this.cancelarObservacionResultados = undefined;
+        this.timeoutObservacionResultados = undefined;
+        this.error = 'La sincronización de resultados tardó más de 8 segundos. Puedes actualizar los datos e intentarlo de nuevo.';
+      }, TIMEOUT_CARGA_MS);
     } catch (error: unknown) {
       console.error('No se pudo cargar el panel institucional docente.', error);
-      this.error = 'No se pudo cargar la información institucional. Intenta nuevamente en unos minutos.';
+      this.error = error instanceof OperationTimeoutError
+        ? error.message
+        : 'No se pudo cargar la información institucional. Intenta nuevamente en unos minutos.';
     } finally {
       this.cargando = false;
     }
   }
 
-  async cargarDatos(): Promise<void> {
-    const [grupos, resultados, codigos] = await Promise.all([
-      this.institutional.listarGrupos(),
-      this.institutional.listarResultados(),
-      this.institutional.listarCodigos(),
-    ]);
+  ngOnDestroy(): void {
+    this.limpiarTimeoutObservacion();
+    this.cancelarObservacionResultados?.();
+  }
+
+  async cargarDatos(timeoutMs = TIMEOUT_CARGA_MS): Promise<void> {
+    const [grupos, resultados, codigos] = await withTimeout(
+      Promise.all([
+        this.institutional.listarGrupos(),
+        this.institutional.listarResultados(),
+        this.institutional.listarCodigos(),
+      ]),
+      timeoutMs,
+      'La consulta de datos tardó más de 8 segundos. Revisa tu conexión e intenta actualizar.',
+    );
     this.grupos = grupos;
     this.resultados = resultados;
     this.codigos = codigos;
@@ -179,6 +237,7 @@ export class TeacherPage implements OnInit {
   }
 
   private mensajeServicio(error: unknown, predeterminado: string): string {
+    if (error instanceof OperationTimeoutError) return error.message;
     if (error && typeof error === 'object' && 'code' in error) {
       const code = String(error.code);
       if (code.includes('permission-denied')) return 'Tu cuenta aún no tiene permisos docentes aprobados y una institución asignada.';
@@ -187,5 +246,11 @@ export class TeacherPage implements OnInit {
       if (code.includes('unavailable')) return 'El servicio no está disponible. Intenta de nuevo en unos minutos.';
     }
     return predeterminado;
+  }
+
+  private limpiarTimeoutObservacion(): void {
+    if (this.timeoutObservacionResultados === undefined) return;
+    clearTimeout(this.timeoutObservacionResultados);
+    this.timeoutObservacionResultados = undefined;
   }
 }

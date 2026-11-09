@@ -33,11 +33,11 @@
           <ion-list lines="full">
             <ion-item>
               <ion-label position="stacked">Nombre</ion-label>
-              <ion-input name="nombre" [(ngModel)]="nombre" autocomplete="name" maxlength="80" [disabled]="guardando" required></ion-input>
+              <ion-input name="nombre" [(ngModel)]="nombre" aria-label="Nombre" autocomplete="name" maxlength="80" [disabled]="guardando" required></ion-input>
             </ion-item>
             <ion-item>
               <ion-label position="stacked">Correo (no editable)</ion-label>
-              <ion-input [value]="usuario?.email || 'No disponible'" readonly></ion-input>
+              <ion-input [value]="usuario?.email || 'No disponible'" aria-label="Correo (no editable)" readonly></ion-input>
             </ion-item>
           </ion-list>
           <p class="profile-hint">Tu correo se usa para iniciar sesión y no se puede cambiar desde esta pantalla.</p>
@@ -56,7 +56,7 @@
           </div>
 
           @if (!perfil.institucion || (perfil.rol === 'estudiante' && (!perfil.grado || !perfil.grupo))) {
-            <p class="profile-hint">Si falta información de tu institución, grado o grupo, solicita su actualización al equipo administrador.</p>
+            <p class="profile-hint">Completa los datos faltantes para evitar que tu cuenta quede bloqueada en el panel o en las actividades.</p>
           }
 
           @if (perfil.rol === 'estudiante') {
@@ -69,7 +69,7 @@
               <div class="enrollment-form">
                 <ion-item>
                   <ion-label position="stacked">Código de invitación</ion-label>
-                  <ion-input name="codigoGrupo" [(ngModel)]="codigoGrupo" autocomplete="off" autocapitalize="characters" maxlength="24" required></ion-input>
+                  <ion-input name="codigoGrupo" [(ngModel)]="codigoGrupo" aria-label="Código de invitación" autocomplete="off" autocapitalize="characters" maxlength="24" required></ion-input>
                 </ion-item>
                 <ion-button type="button" [disabled]="vinculando || !codigoGrupo.trim()" (click)="vincularGrupo()">
                   {{ vinculando ? 'Verificando…' : 'Vincularme al grupo' }}
@@ -77,7 +77,45 @@
               </div>
               </section>
             }
+          }
 
+          @if (datosAcademicosIncompletos) {
+            <section class="enrollment-section" aria-labelledby="missing-data-heading">
+              <div class="section-title">
+                <h2 id="missing-data-heading">Solicitar revisión de datos</h2>
+                <p>
+                  @if (perfil.rol === 'docente') {
+                    Falta la institución de tu perfil. Envíala para revisión; no se habilitarán permisos docentes hasta validarla.
+                  } @else {
+                    Si no tienes un código de invitación o falta información académica, envíala para que el equipo la revise.
+                  }
+                </p>
+              </div>
+              <ion-item>
+                <ion-label position="stacked">Institución</ion-label>
+                <ion-input [(ngModel)]="institucionSolicitada" name="institucionSolicitada" aria-label="Institución solicitada" maxlength="100"></ion-input>
+              </ion-item>
+              @if (perfil.rol === 'estudiante') {
+                <ion-item>
+                  <ion-label position="stacked">Grupo</ion-label>
+                  <ion-input [(ngModel)]="grupoSolicitado" name="grupoSolicitado" aria-label="Grupo solicitado" maxlength="60"></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Grado</ion-label>
+                  <ion-select [(ngModel)]="gradoSolicitado" name="gradoSolicitado" aria-label="Grado solicitado" placeholder="Opcional">
+                    <ion-select-option [value]="9">9.º</ion-select-option>
+                    <ion-select-option [value]="10">10.º</ion-select-option>
+                    <ion-select-option [value]="11">11.º</ion-select-option>
+                  </ion-select>
+                </ion-item>
+              }
+              @if (solicitudPendiente) {
+                <p class="profile-hint" role="status">Solicitud enviada y pendiente de revisión.</p>
+              }
+              <ion-button type="button" [disabled]="solicitandoDatos || solicitudPendiente || !institucionSolicitada.trim() || (perfil.rol === 'estudiante' && !grupoSolicitado.trim())" (click)="solicitarActualizacionPerfil()">
+                {{ solicitandoDatos ? 'Enviando…' : solicitudPendiente ? 'Solicitud enviada' : 'Enviar para revisión' }}
+              </ion-button>
+            </section>
           }
 
           <div class="actions">
@@ -85,12 +123,56 @@
               {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
             </ion-button>
             <ion-button type="button" fill="outline" [disabled]="guardando || !hayCambios" (click)="cancelarEdicion()">Cancelar</ion-button>
-            <ion-button type="button" fill="clear" color="medium" (click)="cerrarSesion()">Cerrar sesión</ion-button>
+            <ion-button type="button" fill="clear" color="medium" [disabled]="cerrandoSesion" (click)="cerrarSesion()">Cerrar sesión</ion-button>
           </div>
         </form>
       </section>
+    } @else if (error && usuario) {
+      <section class="profile-card" aria-labelledby="account-fallback-heading">
+        <div class="profile-heading">
+          <div class="avatar" aria-hidden="true">{{ (usuario.displayName || usuario.email || 'U').slice(0, 1).toUpperCase() }}</div>
+          <div>
+            <p class="eyebrow">CUENTA CIBERDESAFÍO</p>
+            <h2 id="account-fallback-heading">{{ usuario.displayName || 'Usuario' }}</h2>
+            <p>{{ usuario.email || 'Correo no disponible' }}</p>
+          </div>
+        </div>
+        <ion-text color="danger"><p class="notice" role="alert">{{ error }}</p></ion-text>
+        <p class="profile-hint">Los datos de cuenta de Google están disponibles, pero el perfil académico de Firebase aún no se pudo consultar.</p>
+        <ion-button [disabled]="cargando" (click)="reintentarCarga()">
+          {{ cargando ? 'Consultando…' : 'Reintentar carga del perfil' }}
+        </ion-button>
+      </section>
     } @else if (error) {
       <ion-text color="danger"><p class="notice" role="alert">{{ error }}</p></ion-text>
+    } @else if (usuario && perfilPorCompletar) {
+      <section class="profile-card" aria-labelledby="complete-profile-heading">
+        <div class="section-title">
+          <h2 id="complete-profile-heading">Completa tu perfil</h2>
+          <p>Faltan datos básicos para preparar tu cuenta. Ingresa tu nombre y tipo de cuenta; la institución docente quedará marcada como no verificada.</p>
+        </div>
+        <ion-item>
+          <ion-label position="stacked">Nombre</ion-label>
+          <ion-input [(ngModel)]="nombre" name="nombreInicial" aria-label="Nombre" autocomplete="name" maxlength="80"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="stacked">Tipo de cuenta</ion-label>
+          <ion-select [(ngModel)]="rolInicial" name="rolInicial" aria-label="Tipo de cuenta">
+            <ion-select-option value="estudiante">Estudiante</ion-select-option>
+            <ion-select-option value="docente">Docente</ion-select-option>
+          </ion-select>
+        </ion-item>
+        @if (rolInicial === 'docente') {
+          <ion-item>
+            <ion-label position="stacked">Institución</ion-label>
+            <ion-input [(ngModel)]="institucionInicial" name="institucionInicial" aria-label="Institución docente" maxlength="100"></ion-input>
+          </ion-item>
+          <p class="profile-hint">La institución ingresada en modo de prueba no se verifica automáticamente.</p>
+        }
+        <ion-button [disabled]="creandoPerfil || !nombre.trim() || (rolInicial === 'docente' && !institucionInicial.trim())" (click)="crearPerfilInicial()">
+          {{ creandoPerfil ? 'Guardando…' : 'Guardar y continuar' }}
+        </ion-button>
+      </section>
     }
   </main>
 </ion-content>

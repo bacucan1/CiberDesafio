@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
-import { browserLocalPersistence, createUserWithEmailAndPassword, deleteUser, getAdditionalUserInfo, getAuth, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, updateProfile, User } from 'firebase/auth';
+import { browserLocalPersistence, createUserWithEmailAndPassword, deleteUser, getAdditionalUserInfo, getAuth, getRedirectResult, GoogleAuthProvider, inMemoryPersistence, onAuthStateChanged, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, updateProfile, User, UserCredential } from 'firebase/auth';
 import { doc, getDoc, getFirestore, runTransaction, updateDoc } from 'firebase/firestore';
 import { firebaseApp } from '../firebase.config';
 import { RolUsuario, Usuario } from '../models/domain.models';
@@ -17,7 +17,7 @@ export class CodigoDocenteInvalidoError extends Error {
 // Los codigos se crean administrativamente; el documento vincula el codigo con su institucion aprobada.
 export const FORMATO_CODIGO_DOCENTE = /^[A-Za-z0-9-]{8,90}$/;
 
-// Solo guarda lo que el usuario PIDIO al registrarse con Google (flujo con redireccion en movil).
+// Solo guarda lo que el usuario PIDIO al registrarse con Google durante la redireccion.
 // No concede privilegios: el rol real lo deciden las reglas de Firestore al crear el perfil.
 const CLAVE_REGISTRO_GOOGLE = 'ciberdesafio-registro-google';
 const CLAVE_ERROR_ACCESO = 'ciberdesafio-error-acceso';
@@ -29,18 +29,27 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly auth = getAuth(firebaseApp);
   private readonly firestore = getFirestore(firebaseApp);
+  private readonly persistenceReady: Promise<void>;
   // Cache solo en memoria: no se guarda el rol en localStorage porque el usuario podria editarlo.
   private perfilEnMemoria: Usuario | null = null;
+  private perfilEnCarga: { uid: string; promise: Promise<Usuario | null> } | null = null;
+  private perfilRevision = 0;
   constructor() {
-    void setPersistence(this.auth, browserLocalPersistence);
+    this.persistenceReady = setPersistence(this.auth, browserLocalPersistence).catch((error: unknown) => {
+      if (!this.esErrorPersistenciaNoDisponible(error)) throw error;
+      console.warn('El navegador bloqueó la persistencia local; la sesión se mantendrá solo en esta pestaña.', error);
+      return setPersistence(this.auth, inMemoryPersistence);
+    });
     onAuthStateChanged(this.auth, (usuario) => {
-      if (this.perfilEnMemoria && this.perfilEnMemoria.uid !== usuario?.uid) this.perfilEnMemoria = null;
+      if (this.perfilEnMemoria && this.perfilEnMemoria.uid !== usuario?.uid) this.invalidarCache();
     });
     void this.completarRedireccionGoogle();
   }
 
   invalidarCache(): void {
+    this.perfilRevision += 1;
     this.perfilEnMemoria = null;
+    this.perfilEnCarga = null;
   }
 
   usuarioActual(): User | null {
@@ -48,7 +57,9 @@ export class AuthService {
   }
 
   esperarSesion(): Promise<User | null> {
-    return this.auth.authStateReady().then(() => this.auth.currentUser);
+    return this.persistenceReady
+      .then(() => this.auth.authStateReady())
+      .then(() => this.auth.currentUser);
   }
 
   /** Perfil guardado en Firestore (fuente de verdad del rol). Devuelve null si no hay sesion o no hay perfil. */
@@ -56,9 +67,23 @@ export class AuthService {
     const usuario = await this.esperarSesion();
     if (!usuario) { this.perfilEnMemoria = null; return null; }
     if (!forzar && this.perfilEnMemoria?.uid === usuario.uid) return this.perfilEnMemoria;
-    const captura = await getDoc(doc(this.firestore, 'usuarios', usuario.uid));
-    this.perfilEnMemoria = captura.exists() ? (captura.data() as Usuario) : null;
-    return this.perfilEnMemoria;
+    if (this.perfilEnCarga?.uid === usuario.uid) return this.perfilEnCarga.promise;
+    if (this.auth.currentUser?.uid !== usuario.uid) return null;
+
+    const revision = this.perfilRevision;
+    const consulta = getDoc(doc(this.firestore, 'usuarios', usuario.uid)).then((captura) => {
+      const perfil = captura.exists() ? (captura.data() as Usuario) : null;
+      if (this.auth.currentUser?.uid === usuario.uid && this.perfilRevision === revision) {
+        this.perfilEnMemoria = perfil;
+      }
+      return perfil;
+    });
+    this.perfilEnCarga = { uid: usuario.uid, promise: consulta };
+    try {
+      return await consulta;
+    } finally {
+      if (this.perfilEnCarga?.promise === consulta) this.perfilEnCarga = null;
+    }
   }
 
   async rolActual(): Promise<RolUsuario | null> {
@@ -66,7 +91,14 @@ export class AuthService {
   }
 
   async recuperarClave(correo: string): Promise<void> {
+    await this.persistenceReady;
     await sendPasswordResetEmail(this.auth, correo.trim());
+  }
+
+  private esErrorPersistenciaNoDisponible(error: unknown): boolean {
+    if (!error || typeof error !== 'object' || !('code' in error)) return false;
+    return error.code === 'auth/web-storage-unsupported'
+      || error.code === 'auth/unsupported-persistence-type';
   }
 
   /** Mensaje pendiente de un registro con Google por redireccion; se muestra una sola vez en el login. */
@@ -77,6 +109,7 @@ export class AuthService {
   }
 
   async ingresar(correo: string, clave: string): Promise<void> {
+    await this.persistenceReady;
     const credencial = await signInWithEmailAndPassword(this.auth, correo, clave);
     try {
       // Cuentas antiguas sin perfil: se crean como estudiante. Nadie puede elegir ser docente al ingresar.
@@ -89,6 +122,7 @@ export class AuthService {
   }
 
   async registrar(nombre: string, correo: string, clave: string, rol: RolUsuario, codigoInvitacion?: string, institucion?: string): Promise<void> {
+    await this.persistenceReady;
     const nombreLimpio = nombre.trim().replace(/\s+/g, ' ');
     if (!nombreLimpio || nombreLimpio.length > 80) {
       throw new Error('El nombre debe tener entre 1 y 80 caracteres.');
@@ -108,6 +142,7 @@ export class AuthService {
   }
 
   async registrarseConGoogle(rol: RolUsuario, codigoInvitacion?: string, institucion?: string): Promise<void> {
+    await this.persistenceReady;
     const solicitud: SolicitudRegistro = { rol, codigoInvitacion, institucion };
     this.validarSolicitud(solicitud);
     if (Capacitor.isNativePlatform()) {
@@ -115,6 +150,7 @@ export class AuthService {
       await signInWithRedirect(this.auth, new GoogleAuthProvider());
       return;
     }
+
     const credencial = await signInWithPopup(this.auth, new GoogleAuthProvider());
     await this.terminarAccesoGoogle(credencial, solicitud);
   }
@@ -124,6 +160,22 @@ export class AuthService {
     await signOut(this.auth);
     this.invalidarCache();
     await this.router.navigateByUrl('/login');
+  }
+
+  async crearPerfilInicial(nombre: string, rol: RolUsuario, institucion?: string): Promise<Usuario> {
+    const usuario = await this.esperarSesion();
+    if (!usuario) throw new Error('Debes iniciar sesión para completar tu perfil.');
+
+    const nombreLimpio = nombre.trim().replace(/\s+/g, ' ');
+    if (!nombreLimpio || nombreLimpio.length > 80) {
+      throw new Error('El nombre debe tener entre 1 y 80 caracteres.');
+    }
+
+    const solicitud: SolicitudRegistro = rol === 'docente'
+      ? { rol, institucion: institucion?.trim().replace(/\s+/g, ' ') }
+      : { rol: 'estudiante' };
+    this.validarSolicitud(solicitud);
+    return this.asegurarPerfil(usuario, solicitud, nombreLimpio);
   }
 
   private validarSolicitud(solicitud: SolicitudRegistro): void {
@@ -207,7 +259,7 @@ export class AuthService {
     return creado;
   }
 
-  private async terminarAccesoGoogle(credencial: Awaited<ReturnType<typeof signInWithPopup>>, solicitud: SolicitudRegistro): Promise<void> {
+  private async terminarAccesoGoogle(credencial: UserCredential, solicitud: SolicitudRegistro): Promise<void> {
     const esNueva = getAdditionalUserInfo(credencial)?.isNewUser ?? false;
     try {
       const perfil = await this.asegurarPerfil(credencial.user, solicitud, credencial.user.displayName ?? 'Usuario CiberDesafio');
@@ -221,6 +273,7 @@ export class AuthService {
 
   private async completarRedireccionGoogle(): Promise<void> {
     try {
+      await this.persistenceReady;
       const credencial = await getRedirectResult(this.auth);
       if (!credencial) return;
       const guardado = sessionStorage.getItem(CLAVE_REGISTRO_GOOGLE);

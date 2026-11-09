@@ -192,6 +192,29 @@ service cloud.firestore {
         && datos.porcentajeAciertos <= (datos.totalAciertos * 100 / datos.totalDecisiones) + 0.5;
     }
 
+    function resultadoEjercicioValido(id, datos) {
+      return datos.keys().hasOnly([
+          'escenarioId', 'eje', 'aciertos', 'decisiones', 'porcentajeAciertos', 'puntos', 'fechaActualizacion'
+        ])
+        && datos.keys().hasAll([
+          'escenarioId', 'eje', 'aciertos', 'decisiones', 'porcentajeAciertos', 'puntos', 'fechaActualizacion'
+        ])
+        && datos.escenarioId == id
+        && id.matches('^[a-z0-9-]{1,80}$')
+        && datos.eje in ['fraude', 'relación de riesgo', 'higiene']
+        && datos.aciertos is int
+        && datos.decisiones is int
+        && datos.decisiones > 0
+        && datos.aciertos >= 0
+        && datos.aciertos <= datos.decisiones
+        && datos.porcentajeAciertos is number
+        && datos.porcentajeAciertos >= (datos.aciertos * 100 / datos.decisiones) - 0.5
+        && datos.porcentajeAciertos <= (datos.aciertos * 100 / datos.decisiones) + 0.5
+        && datos.puntos is int
+        && datos.puntos >= 0
+        && datos.fechaActualizacion is string;
+    }
+
     function participanteCoincideConResultado(id, uid) {
       let resultadoPath = ruta('resultados_agregados', id);
       let despues = getAfter(resultadoPath);
@@ -253,6 +276,25 @@ service cloud.firestore {
         && request.auth.uid == uid
         && (actualizacionNombrePermitida() || vinculacionEstudiantePermitida(uid));
       allow delete: if false;
+
+      match /resultados/{escenarioId} {
+        allow get, list: if autenticado() && request.auth.uid == uid;
+        allow create: if esEstudiante()
+          && request.auth.uid == uid
+          && resultadoEjercicioValido(escenarioId, request.resource.data)
+          && request.resource.data.decisiones == 1
+          && request.resource.data.aciertos in [0, 1]
+          && request.resource.data.puntos == (request.resource.data.aciertos == 1 ? 100 : 25);
+        allow update: if esEstudiante()
+          && request.auth.uid == uid
+          && resultadoEjercicioValido(escenarioId, request.resource.data)
+          && request.resource.data.decisiones == resource.data.decisiones + 1
+          && request.resource.data.aciertos >= resource.data.aciertos
+          && request.resource.data.aciertos <= resource.data.aciertos + 1
+          && request.resource.data.puntos == resource.data.puntos
+            + (request.resource.data.aciertos == resource.data.aciertos + 1 ? 100 : 25);
+        allow delete: if false;
+      }
     }
 
     match /codigos_invitacion/{codigo} {
@@ -416,6 +458,46 @@ service cloud.firestore {
     match /solicitudes_docente/{uid} {
       allow read: if autenticado() && request.auth.uid == uid;
       allow write: if false;
+    }
+
+    match /solicitudes_actualizacion_perfil/{uid} {
+      function solicitudValida() {
+        let datos = request.resource.data;
+        return autenticado()
+          && request.auth.uid == uid
+          && perfilExiste(uid)
+          && datos.keys().hasOnly([
+            'uid', 'rol', 'nombre', 'institucion', 'grupo', 'grado', 'estado', 'fechaSolicitud'
+          ])
+          && datos.keys().hasAll(['uid', 'rol', 'nombre', 'institucion', 'estado', 'fechaSolicitud'])
+          && datos.uid == uid
+          && datos.rol == perfilActual().rol
+          && datos.nombre == perfilActual().nombre
+          && datos.institucion is string
+          && datos.institucion.size() >= 3
+          && datos.institucion.size() <= 100
+          && datos.estado == 'pendiente'
+          && datos.fechaSolicitud == request.time
+          && (
+            (datos.rol == 'docente'
+              && !('grupo' in datos)
+              && !('grado' in datos))
+            ||
+            (datos.rol == 'estudiante'
+              && datos.grupo is string
+              && datos.grupo.size() >= 2
+              && datos.grupo.size() <= 60
+              && (!('grado' in datos) || datos.grado in [9, 10, 11]))
+          );
+      }
+
+      allow get: if autenticado() && request.auth.uid == uid;
+      allow list: if false;
+      allow create: if !exists(ruta('solicitudes_actualizacion_perfil', uid))
+        && solicitudValida();
+      allow update: if resource.data.estado == 'pendiente'
+        && solicitudValida();
+      allow delete: if false;
     }
   }
 }

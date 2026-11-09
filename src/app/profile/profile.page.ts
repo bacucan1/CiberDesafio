@@ -1,52 +1,116 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonList, IonText, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonList, IonSelect, IonSelectOption, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { User } from 'firebase/auth';
-import { Usuario } from '../core/models/domain.models';
+import { RolUsuario, Usuario } from '../core/models/domain.models';
 import { AuthService } from '../core/services/auth.service';
 import { InstitutionalService } from '../core/services/institutional.service';
+import { OperationTimeoutError, remainingTime, withTimeout } from '../core/utils/async.utils';
+
+const TIMEOUT_CARGA_MS = 8_000;
 
 @Component({
   selector: 'app-profile',
   templateUrl: './profile.page.html',
   styleUrls: ['./profile.page.scss'],
-  imports: [FormsModule, RouterLink, IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonList, IonText, IonTitle, IonToolbar],
+  imports: [FormsModule, RouterLink, IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonList, IonSelect, IonSelectOption, IonText, IonTitle, IonToolbar],
 })
-export class ProfilePage implements OnInit {
+export class ProfilePage {
   private readonly auth = inject(AuthService);
   private readonly institutional = inject(InstitutionalService);
   private readonly router = inject(Router);
+  private vistaInicializada = false;
 
   perfil: Usuario | null = null;
   usuario: User | null = null;
   nombre = '';
+  rolInicial: RolUsuario = 'estudiante';
+  institucionInicial = '';
+  perfilPorCompletar = false;
+  creandoPerfil = false;
   codigoGrupo = '';
+  institucionSolicitada = '';
+  grupoSolicitado = '';
+  gradoSolicitado?: number;
+  solicitandoDatos = false;
+  solicitudPendiente = false;
   cargando = true;
   guardando = false;
   vinculando = false;
+  cerrandoSesion = false;
   error = '';
   mensaje = '';
 
-  async ngOnInit(): Promise<void> {
+  async ionViewWillEnter(): Promise<void> {
+    if (!this.vistaInicializada) {
+      this.vistaInicializada = true;
+      await this.cargarPerfil();
+      return;
+    }
+
+    if (!this.esDispositivoMovil()
+      || this.cargando
+      || this.guardando
+      || this.perfilPorCompletar
+      || this.hayCambios
+      || this.institucionSolicitada !== (this.perfil?.institucion ?? '')
+      || this.grupoSolicitado !== (this.perfil?.grupo ?? '')
+      || this.gradoSolicitado !== this.perfil?.grado) {
+      return;
+    }
+
+    await this.reintentarCarga();
+  }
+
+  private esDispositivoMovil(): boolean {
+    return typeof window !== 'undefined'
+      && window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+  }
+
+  async cargarPerfil(): Promise<void> {
+    this.cargando = true;
+    this.error = '';
+    this.perfil = null;
+    this.perfilPorCompletar = false;
+    const inicioCarga = Date.now();
     try {
-      this.usuario = await this.auth.esperarSesion();
+      this.usuario = await withTimeout(
+        this.auth.esperarSesion(),
+        remainingTime(inicioCarga, TIMEOUT_CARGA_MS),
+        'La conexión con Firebase está tardando demasiado. Revisa tu conexión e intenta cargar de nuevo.',
+      );
       if (!this.usuario) {
         await this.router.navigateByUrl('/login');
         return;
       }
-      this.perfil = await this.auth.obtenerPerfil();
+      this.perfil = await withTimeout(
+        this.auth.obtenerPerfil(),
+        remainingTime(inicioCarga, TIMEOUT_CARGA_MS),
+        'La información de tu perfil tardó más de 8 segundos. Revisa tu conexión e intenta cargar de nuevo.',
+      );
       if (!this.perfil) {
-        this.error = 'No encontramos un perfil válido para esta cuenta. Contacta al equipo administrador.';
+        this.perfilPorCompletar = true;
+        this.nombre = this.usuario.displayName ?? '';
         return;
       }
       this.nombre = this.perfil.nombre;
+      this.institucionSolicitada = this.perfil.institucion ?? '';
+      this.grupoSolicitado = this.perfil.grupo ?? '';
+      this.gradoSolicitado = this.perfil.grado;
     } catch (error: unknown) {
       console.error('No se pudo cargar el perfil del usuario.', error);
-      this.error = 'No se pudo cargar tu perfil. Revisa tu conexión e intenta nuevamente.';
+      this.error = error instanceof OperationTimeoutError
+        ? error.message
+        : 'No se pudo cargar tu perfil. Revisa tu conexión e intenta nuevamente.';
     } finally {
       this.cargando = false;
     }
+  }
+
+  async reintentarCarga(): Promise<void> {
+    this.auth.invalidarCache();
+    await this.cargarPerfil();
   }
 
   async guardar(): Promise<void> {
@@ -84,6 +148,53 @@ export class ProfilePage implements OnInit {
     }
   }
 
+  async crearPerfilInicial(): Promise<void> {
+    if (!this.usuario || this.creandoPerfil) return;
+    this.creandoPerfil = true;
+    this.error = '';
+    this.mensaje = '';
+    try {
+      this.perfil = await this.auth.crearPerfilInicial(
+        this.nombre,
+        this.rolInicial,
+        this.rolInicial === 'docente' ? this.institucionInicial : undefined,
+      );
+      this.perfilPorCompletar = false;
+      this.nombre = this.perfil.nombre;
+      this.institucionSolicitada = this.perfil.institucion ?? '';
+      this.grupoSolicitado = this.perfil.grupo ?? '';
+      this.gradoSolicitado = this.perfil.grado;
+      this.mensaje = 'Tu perfil quedó creado. Completa los datos académicos pendientes para continuar.';
+    } catch (error: unknown) {
+      console.error('No se pudo completar el perfil del usuario.', error);
+      this.error = error instanceof Error ? error.message : 'No se pudo crear tu perfil. Intenta nuevamente.';
+    } finally {
+      this.creandoPerfil = false;
+    }
+  }
+
+  async solicitarActualizacionPerfil(): Promise<void> {
+    if (!this.perfil || this.solicitandoDatos || this.solicitudPendiente) return;
+    this.solicitandoDatos = true;
+    this.error = '';
+    this.mensaje = '';
+    try {
+      await this.institutional.solicitarActualizacionPerfil({
+        institucion: this.institucionSolicitada,
+        ...(this.perfil.rol === 'estudiante'
+          ? { grupo: this.grupoSolicitado, ...(this.gradoSolicitado !== undefined ? { grado: this.gradoSolicitado } : {}) }
+          : {}),
+      });
+      this.solicitudPendiente = true;
+      this.mensaje = 'Recibimos tus datos y quedaron pendientes de revisión. No se cambiarán los permisos ni tu perfil hasta que sean validados.';
+    } catch (error: unknown) {
+      console.error('No se pudo enviar la solicitud de actualización del perfil.', error);
+      this.error = this.mensajeServicio(error, 'No se pudo enviar la solicitud. Revisa los datos e intenta nuevamente.');
+    } finally {
+      this.solicitandoDatos = false;
+    }
+  }
+
   async vincularGrupo(): Promise<void> {
     if (!this.perfil || this.perfil.rol !== 'estudiante' || this.vinculando) return;
     this.vinculando = true;
@@ -118,8 +229,23 @@ export class ProfilePage implements OnInit {
     return !!this.perfil && this.normalizarNombre(this.nombre) !== this.perfil.nombre;
   }
 
-  cerrarSesion(): Promise<void> {
-    return this.auth.salir();
+  get datosAcademicosIncompletos(): boolean {
+    if (!this.perfil) return false;
+    if (this.perfil.rol === 'docente') return !this.perfil.institucion;
+    return !this.perfil.institucion || !this.perfil.grupo || !this.perfil.grupoId;
+  }
+
+  async cerrarSesion(): Promise<void> {
+    if (this.cerrandoSesion) return;
+    this.cerrandoSesion = true;
+    this.error = '';
+    try {
+      await this.auth.salir();
+    } catch (error: unknown) {
+      console.error('No se pudo cerrar la sesión del usuario.', error);
+      this.error = 'No se pudo cerrar la sesión. Intenta nuevamente.';
+      this.cerrandoSesion = false;
+    }
   }
 
   get proveedor(): string {

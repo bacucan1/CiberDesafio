@@ -2,3 +2,14 @@
 .feedback:active { cursor: grabbing; }
 .feedback-swipe-hint { align-items: center; color: #9d8b66; display: flex; font-family: monospace; font-size: .58rem; gap: 5px; margin: 0 0 11px; }
 .feedback-swipe-hint ion-icon { color: var(--neon, #67e6c0); font-size: .9rem; }
+
+.exercise-item:focus-visible, .option-button:focus-visible, .deck-arrow:focus-visible {
+  outline: 3px solid var(--neon, var(--violet));
+  outline-offset: 3px;
+}
+
+.option-button:active { transform: scale(.99); }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-reveal, .feedback, .scenario-card, .option-button { animation: none; transition: none; }
+}

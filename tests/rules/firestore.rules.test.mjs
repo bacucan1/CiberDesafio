@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, query, runTransaction, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
 
 const INSTITUCION = 'Colegio Central';
 const GRUPO_ID = 'a'.repeat(64);
@@ -68,6 +68,24 @@ beforeEach(async () => {
 describe('registro y protección de perfiles', () => {
   it('permite crear perfiles de estudiante sin datos académicos', async () => {
     await assertSucceeds(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilEstudiante('nuevo')));
+  });
+
+  it('permite solicitar datos de perfil faltantes sin modificar el perfil ni el rol', async () => {
+    const solicitud = {
+      uid: 'docA',
+      rol: 'docente',
+      nombre: 'Docente',
+      institucion: 'Colegio Nuevo',
+      estado: 'pendiente',
+      fechaSolicitud: serverTimestamp(),
+    };
+    await assertSucceeds(setDoc(doc(como('docA'), 'solicitudes_actualizacion_perfil/docA'), solicitud));
+    await assertFails(setDoc(doc(como('est1'), 'solicitudes_actualizacion_perfil/est1'), {
+      ...solicitud,
+      uid: 'est1',
+      rol: 'docente',
+    }));
+    await assertFails(updateDoc(doc(como('docA'), 'usuarios/docA'), { institucion: 'Colegio Nuevo' }));
   });
 
   it('permite registro docente de prueba y conserva la validación del código administrativo', async () => {
@@ -216,9 +234,47 @@ describe('vinculación de estudiantes con código de grupo', () => {
       });
     }));
   });
+
+  it('limita la lista de grupos del docente a los de su institución', async () => {
+    const db = como('docA');
+    await assertSucceeds(getDocs(query(
+      collection(db, 'grupos'),
+      where('profesores', 'array-contains', 'docA'),
+      where('institucion', '==', INSTITUCION),
+    )));
+    await assertFails(getDocs(query(
+      collection(db, 'grupos'),
+      where('profesores', 'array-contains', 'docA'),
+    )));
+  });
 });
 
 describe('resultados agregados y privacidad', () => {
+  it('guarda el resultado por ejercicio en la cuenta y lo mantiene privado', async () => {
+    const resultadoRef = doc(como('est1'), 'usuarios/est1/resultados/phishing-beca');
+    await assertSucceeds(setDoc(resultadoRef, {
+      escenarioId: 'phishing-beca', eje: 'fraude', aciertos: 1, decisiones: 1,
+      porcentajeAciertos: 100, puntos: 100, fechaActualizacion: new Date().toISOString(),
+    }));
+    await assertSucceeds(updateDoc(resultadoRef, {
+      aciertos: 1, decisiones: 2, porcentajeAciertos: 50, puntos: 125,
+      fechaActualizacion: new Date().toISOString(),
+    }));
+    await assertFails(getDoc(doc(como('est2'), 'usuarios/est1/resultados/phishing-beca')));
+    await assertFails(getDoc(doc(como('docA'), 'usuarios/est1/resultados/phishing-beca')));
+  });
+
+  it('rechaza resultados de ejercicio inconsistentes o de cuentas ajenas', async () => {
+    await assertFails(setDoc(doc(como('est1'), 'usuarios/est1/resultados/phishing-beca'), {
+      escenarioId: 'otro-ejercicio', eje: 'fraude', aciertos: 1, decisiones: 1,
+      porcentajeAciertos: 100, puntos: 100, fechaActualizacion: new Date().toISOString(),
+    }));
+    await assertFails(setDoc(doc(como('est2'), 'usuarios/est1/resultados/phishing-beca'), {
+      escenarioId: 'phishing-beca', eje: 'fraude', aciertos: 0, decisiones: 1,
+      porcentajeAciertos: 0, puntos: 25, fechaActualizacion: new Date().toISOString(),
+    }));
+  });
+
   it('el docente consulta resultados agregados de su institución', async () => {
     const db = como('docA');
     await assertSucceeds(getDoc(doc(db, `resultados_agregados/${GRUPO_ID}_fraude`)));

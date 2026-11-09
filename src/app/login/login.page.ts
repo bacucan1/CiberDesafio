@@ -146,9 +146,11 @@ export class LoginPage {
       case 'auth/network-request-failed':
         return 'No hay conexión. Revisa tu internet e intenta nuevamente.';
       case 'auth/popup-closed-by-user':
-        return 'Se cerró la ventana de Google antes de terminar el acceso.';
+        return 'Se interrumpió el acceso con Google antes de terminar.';
       case 'auth/popup-blocked':
-        return 'El navegador bloqueó la ventana de Google. Permite las ventanas emergentes e intenta de nuevo.';
+        return 'El navegador bloqueó el acceso con Google. Revisa la configuración de privacidad e intenta de nuevo.';
+      case 'auth/web-storage-unsupported':
+        return 'El navegador no permite el almacenamiento necesario para mantener la sesión. Habilita el almacenamiento del sitio e inténtalo de nuevo.';
       case 'auth/unauthorized-domain':
         return 'Este dominio no está autorizado en Firebase Authentication.';
       case 'auth/operation-not-allowed':

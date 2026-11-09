@@ -6,12 +6,20 @@ import { HomePage } from './home.page';
 describe('HomePage', () => {
   let component: HomePage;
   let fixture: ComponentFixture<HomePage>;
+  let sesionesCerradas: number;
 
   beforeEach(async () => {
+    sesionesCerradas = 0;
     await TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
-        { provide: AuthService, useValue: { usuarioActual: () => ({ uid: 'estudiante-1' }) } },
+        {
+          provide: AuthService,
+          useValue: {
+            usuarioActual: () => ({ uid: 'estudiante-1' }),
+            salir: async () => { sesionesCerradas += 1; },
+          },
+        },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(HomePage);
@@ -21,5 +29,11 @@ describe('HomePage', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('cierra la sesión desde la página de inicio', async () => {
+    await component.cerrarSesion();
+
+    expect(sesionesCerradas).toBe(1);
   });
 });

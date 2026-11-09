@@ -56,31 +56,31 @@
 
         <form class="auth-form" (ngSubmit)="enviar()">
           @if (registrando) {
-            <label class="field-label" for="account-name">Nombre completo</label>
+            <span class="field-label">Nombre completo</span>
             <div class="input-wrap">
               <ion-icon name="person" aria-hidden="true"></ion-icon>
-              <ion-input id="account-name" name="nombre" [(ngModel)]="nombre" autocomplete="name" placeholder="Tu nombre" maxlength="80" required></ion-input>
+              <ion-input id="account-name" name="nombre" [(ngModel)]="nombre" aria-label="Nombre completo" autocomplete="name" placeholder="Tu nombre" maxlength="80" required></ion-input>
             </div>
           }
-          <label class="field-label" for="account-email">Correo electrónico</label>
+          <span class="field-label">Correo electrónico</span>
           <div class="input-wrap">
             <ion-icon name="mail" aria-hidden="true"></ion-icon>
-            <ion-input id="account-email" name="correo" [(ngModel)]="correo" type="email" autocomplete="email" inputmode="email" placeholder="nombre@correo.com" required></ion-input>
+            <ion-input id="account-email" name="correo" [(ngModel)]="correo" aria-label="Correo electrónico" type="email" autocomplete="email" inputmode="email" placeholder="nombre@correo.com" required></ion-input>
           </div>
           @if (registrando && solicitandoDocencia) {
-            <label class="field-label" for="teacher-institution">Institución educativa</label>
+            <span class="field-label">Institución educativa</span>
             <div class="input-wrap">
               <ion-icon name="business" aria-hidden="true"></ion-icon>
-              <ion-input id="teacher-institution" name="institucion" [(ngModel)]="institucion" autocomplete="organization" placeholder="Ej. Institución de prueba" maxlength="100" required></ion-input>
+              <ion-input id="teacher-institution" name="institucion" [(ngModel)]="institucion" aria-label="Institución educativa" autocomplete="organization" placeholder="Ej. Institución de prueba" maxlength="100" required></ion-input>
             </div>
           }
           <div class="password-heading">
-            <label class="field-label" for="account-password">Contraseña</label>
+            <span class="field-label">Contraseña</span>
             @if (!registrando) { <button type="button" class="text-link" [disabled]="cargando" (click)="recuperarClave()">¿Olvidaste tu contraseña?</button> }
           </div>
           <div class="input-wrap">
             <ion-icon name="key" aria-hidden="true"></ion-icon>
-            <ion-input id="account-password" name="clave" [(ngModel)]="clave" [type]="mostrarClave ? 'text' : 'password'" [autocomplete]="registrando ? 'new-password' : 'current-password'" placeholder="Mínimo 6 caracteres" minlength="6" required></ion-input>
+            <ion-input id="account-password" name="clave" [(ngModel)]="clave" aria-label="Contraseña" [type]="mostrarClave ? 'text' : 'password'" [autocomplete]="registrando ? 'new-password' : 'current-password'" placeholder="Mínimo 6 caracteres" minlength="6" required></ion-input>
             <button type="button" class="visibility-button" [attr.aria-label]="mostrarClave ? 'Ocultar contraseña' : 'Mostrar contraseña'" (click)="mostrarClave = !mostrarClave">
               <ion-icon [name]="mostrarClave ? 'eye-off' : 'eye'" aria-hidden="true"></ion-icon>
             </button>

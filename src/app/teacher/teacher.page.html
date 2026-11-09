@@ -2,6 +2,9 @@
   <ion-toolbar>
     <ion-title>Panel docente</ion-title>
     <ion-button slot="end" fill="clear" routerLink="/perfil">Mi perfil</ion-button>
+    <ion-button slot="end" fill="clear" [disabled]="cerrandoSesion" (click)="cerrarSesion()" aria-label="Cerrar sesión">
+      <ion-icon name="log-out"></ion-icon>
+    </ion-button>
   </ion-toolbar>
 </ion-header>
 
@@ -26,11 +29,11 @@
         <div class="invite-form">
           <ion-item>
             <ion-label position="stacked">Grupo</ion-label>
-            <ion-input [(ngModel)]="nuevoGrupo" name="nuevoGrupo" placeholder="Ej. 901-A" maxlength="60"></ion-input>
+            <ion-input [(ngModel)]="nuevoGrupo" name="nuevoGrupo" aria-label="Grupo" placeholder="Ej. 901-A" maxlength="60"></ion-input>
           </ion-item>
           <ion-item>
             <ion-label position="stacked">Grado</ion-label>
-            <ion-select [(ngModel)]="nuevoGrado" name="nuevoGrado" placeholder="Opcional">
+            <ion-select [(ngModel)]="nuevoGrado" name="nuevoGrado" aria-label="Grado" placeholder="Opcional">
               <ion-select-option [value]="9">9.º</ion-select-option>
               <ion-select-option [value]="10">10.º</ion-select-option>
               <ion-select-option [value]="11">11.º</ion-select-option>
@@ -109,7 +112,7 @@
             </ion-card>
             <ion-card class="insight-card">
               <ion-card-header><ion-badge color="success">PRIVACIDAD DEL ESTUDIANTE</ion-badge><ion-card-title>Datos protegidos</ion-card-title></ion-card-header>
-              <ion-card-content><p>Este panel muestra métricas resumidas por grupo y eje, sin nombres, correos ni historial individual. Las puntuaciones se calculan en el dispositivo del estudiante y no se validan en un servidor.</p></ion-card-content>
+              <ion-card-content><p>El progreso de cada ejercicio se guarda de forma privada en la cuenta del estudiante. Aquí solo aparecen métricas anónimas y agregadas por grupo; los cambios se sincronizan automáticamente desde Firebase.</p></ion-card-content>
             </ion-card>
           </section>
         }
