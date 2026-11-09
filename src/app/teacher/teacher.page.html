@@ -52,7 +52,9 @@
             @for (codigo of codigos; track codigo.codigo) {
               <article class="invite-row">
                 <div><strong>{{ codigo.grupo }}@if (codigo.grado) { · {{ codigo.grado }}.º }</strong><span>{{ codigo.codigo }} · {{ codigo.usos }}/{{ codigo.maxUsos }} usos · vence {{ codigo.venceEn | date:'mediumDate' }}</span></div>
-                <ion-button fill="clear" [disabled]="codigo.estado !== 'activo'" (click)="revocarCodigo(codigo)"> {{ codigo.estado === 'activo' ? 'Revocar' : 'Revocado' }} </ion-button>
+                <ion-button fill="clear" [disabled]="codigo.estado !== 'activo'" (click)="revocarCodigo(codigo)">
+                  {{ codigo.estado === 'activo' ? 'Revocar' : codigo.estado === 'expirado' ? 'Vencido' : 'Revocado' }}
+                </ion-button>
               </article>
             }
           </div>
@@ -62,16 +64,21 @@
       <section class="results-section">
         <div class="results-heading">
           <div><p class="eyebrow">RESULTADOS ANÓNIMOS Y AGREGADOS</p><h2>Progreso del grupo</h2></div>
-          @if (grupos.length) {
-            <ion-item class="group-picker">
-              <ion-label position="stacked">Grupo</ion-label>
-              <ion-select [(ngModel)]="grupoSeleccionado" aria-label="Seleccionar grupo">
-                @for (grupo of grupos; track claveGrupo(grupo)) {
-                  <ion-select-option [value]="claveGrupo(grupo)">{{ grupo.grupo }}@if (grupo.grado) { · {{ grupo.grado }}.º }</ion-select-option>
-                }
-              </ion-select>
-            </ion-item>
-          }
+          <div class="results-controls">
+            @if (grupos.length) {
+              <ion-item class="group-picker">
+                <ion-label position="stacked">Grupo</ion-label>
+                <ion-select [(ngModel)]="grupoSeleccionado" aria-label="Seleccionar grupo">
+                  @for (grupo of grupos; track claveGrupo(grupo)) {
+                    <ion-select-option [value]="claveGrupo(grupo)">{{ grupo.grupo }}@if (grupo.grado) { · {{ grupo.grado }}.º }</ion-select-option>
+                  }
+                </ion-select>
+              </ion-item>
+            }
+            <ion-button fill="outline" [disabled]="actualizando" (click)="actualizarDatos()">
+              {{ actualizando ? 'Actualizando…' : 'Actualizar resultados' }}
+            </ion-button>
+          </div>
         </div>
 
         @if (!grupos.length) {
@@ -80,10 +87,13 @@
           <div class="empty-state"><ion-icon name="bar-chart" aria-hidden="true"></ion-icon><h3>Esperando los primeros resultados</h3><p>El grupo <strong>{{ etiquetaGrupoSeleccionado }}</strong> ya está preparado. El progreso agregado aparecerá cuando se registren decisiones de aprendizaje.</p></div>
         } @else {
           <section class="overview">
-            <div><span>ESTUDIANTES PARTICIPANTES</span><strong>{{ cantidadEstudiantes }}</strong><small>en este grupo</small></div>
-            <div><span>PROMEDIO DE ACIERTOS</span><strong>{{ promedio }}%</strong><small>promedio de los ejes registrados</small></div>
+            <div><span>PARTICIPACIÓN POR EJE</span><strong>{{ cantidadEstudiantes }}</strong><small>máximo de estudiantes en un eje registrado</small></div>
+            <div><span>ACIERTOS GLOBALES</span><strong>{{ promedio }}%</strong><small>ponderado por todas las decisiones</small></div>
             <div><span>PRIORIDAD DE REFUERZO</span><strong>{{ temaPrioritario }}</strong><small>menor porcentaje de aciertos</small></div>
           </section>
+          @if (ultimaActualizacion) {
+            <p class="results-updated">Última actividad registrada: {{ ultimaActualizacion | date:'medium' }}</p>
+          }
           <section class="analysis-layout">
             <ion-card class="topic-card">
               <ion-card-header><ion-badge color="warning">DESEMPEÑO AGREGADO</ion-badge><ion-card-title>Avance por eje</ion-card-title></ion-card-header>

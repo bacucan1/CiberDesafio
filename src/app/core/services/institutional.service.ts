@@ -28,13 +28,15 @@ export interface GroupInvite {
   codigo: string;
   grupo: string;
   grado?: number;
-  estado: 'activo' | 'revocado';
+  estado: 'activo' | 'revocado' | 'expirado';
   usos: number;
   maxUsos: number;
   venceEn: string;
 }
 
 export interface GroupResults {
+  totalAciertos: number;
+  totalDecisiones: number;
   grupo: string;
   grado?: number;
   institucion: string;
@@ -129,7 +131,9 @@ export class InstitutionalService {
         codigo: data['codigo'],
         grupo: data['grupo'],
         ...(typeof data['grado'] === 'number' ? { grado: data['grado'] } : {}),
-        estado: data['estado'],
+        estado: data['estado'] === 'activo' && (data['venceEn'] as Timestamp).toMillis() <= Date.now()
+          ? 'expirado'
+          : data['estado'],
         usos: data['usos'],
         maxUsos: data['maxUsos'],
         venceEn: (data['venceEn'] as Timestamp).toDate().toISOString(),
@@ -227,6 +231,8 @@ export class InstitutionalService {
     return snapshot.docs.map((item) => {
       const data = item.data();
       return {
+        totalAciertos: data['totalAciertos'],
+        totalDecisiones: data['totalDecisiones'],
         grupo: data['grupo'],
         ...(typeof data['grado'] === 'number' ? { grado: data['grado'] } : {}),
         institucion: data['institucion'],

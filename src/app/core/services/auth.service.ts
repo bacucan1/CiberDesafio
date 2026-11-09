@@ -2,11 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
 import { browserLocalPersistence, createUserWithEmailAndPassword, deleteUser, getAdditionalUserInfo, getAuth, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, updateProfile, User } from 'firebase/auth';
-import { doc, getDoc, getFirestore, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, getFirestore, runTransaction, updateDoc } from 'firebase/firestore';
 import { firebaseApp } from '../firebase.config';
 import { RolUsuario, Usuario } from '../models/domain.models';
 
-/** El codigo de invitacion docente no tiene el formato esperado o fue rechazado por las reglas de Firestore. */
+/** El codigo docente no existe, vencio, fue revocado o no corresponde a la institucion indicada. */
 export class CodigoDocenteInvalidoError extends Error {
   constructor() {
     super('Codigo de invitacion docente invalido');
@@ -14,15 +14,15 @@ export class CodigoDocenteInvalidoError extends Error {
   }
 }
 
-// Mismo formato que valida firestore.rules: <institucion>-<secreto>
-export const FORMATO_CODIGO_DOCENTE = /^[a-z0-9]{2,30}-[A-Za-z0-9]{6,32}$/;
+// Los codigos se crean administrativamente; el documento vincula el codigo con su institucion aprobada.
+export const FORMATO_CODIGO_DOCENTE = /^[A-Za-z0-9-]{8,90}$/;
 
 // Solo guarda lo que el usuario PIDIO al registrarse con Google (flujo con redireccion en movil).
 // No concede privilegios: el rol real lo deciden las reglas de Firestore al crear el perfil.
 const CLAVE_REGISTRO_GOOGLE = 'ciberdesafio-registro-google';
 const CLAVE_ERROR_ACCESO = 'ciberdesafio-error-acceso';
 
-interface SolicitudRegistro { rol: RolUsuario; codigoInvitacion?: string; }
+interface SolicitudRegistro { rol: RolUsuario; codigoInvitacion?: string; institucion?: string; }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -88,12 +88,17 @@ export class AuthService {
     }
   }
 
-  async registrar(nombre: string, correo: string, clave: string, rol: RolUsuario, codigoInvitacion?: string): Promise<void> {
-    this.validarSolicitud({ rol, codigoInvitacion });
+  async registrar(nombre: string, correo: string, clave: string, rol: RolUsuario, codigoInvitacion?: string, institucion?: string): Promise<void> {
+    const nombreLimpio = nombre.trim().replace(/\s+/g, ' ');
+    if (!nombreLimpio || nombreLimpio.length > 80) {
+      throw new Error('El nombre debe tener entre 1 y 80 caracteres.');
+    }
+    const solicitud: SolicitudRegistro = { rol, codigoInvitacion, institucion };
+    this.validarSolicitud(solicitud);
     const credencial = await createUserWithEmailAndPassword(this.auth, correo, clave);
     try {
-      await updateProfile(credencial.user, { displayName: nombre });
-      const perfil = await this.asegurarPerfil(credencial.user, { rol, codigoInvitacion }, nombre);
+      await updateProfile(credencial.user, { displayName: nombreLimpio });
+      const perfil = await this.asegurarPerfil(credencial.user, solicitud, nombreLimpio);
       await this.irAlInicio(perfil.rol);
     } catch (error) {
       // No dejamos cuentas de Auth sin perfil (por ejemplo, con un codigo docente invalido).
@@ -102,8 +107,8 @@ export class AuthService {
     }
   }
 
-  async registrarseConGoogle(rol: RolUsuario, codigoInvitacion?: string): Promise<void> {
-    const solicitud: SolicitudRegistro = { rol, codigoInvitacion };
+  async registrarseConGoogle(rol: RolUsuario, codigoInvitacion?: string, institucion?: string): Promise<void> {
+    const solicitud: SolicitudRegistro = { rol, codigoInvitacion, institucion };
     this.validarSolicitud(solicitud);
     if (Capacitor.isNativePlatform()) {
       sessionStorage.setItem(CLAVE_REGISTRO_GOOGLE, JSON.stringify(solicitud));
@@ -122,8 +127,13 @@ export class AuthService {
   }
 
   private validarSolicitud(solicitud: SolicitudRegistro): void {
-    if (solicitud.rol === 'docente' && !FORMATO_CODIGO_DOCENTE.test(solicitud.codigoInvitacion ?? '')) {
+    if (solicitud.rol !== 'docente') return;
+    if (solicitud.codigoInvitacion?.trim() && !FORMATO_CODIGO_DOCENTE.test(solicitud.codigoInvitacion.trim())) {
       throw new CodigoDocenteInvalidoError();
+    }
+    const institucion = solicitud.institucion?.trim().replace(/\s+/g, ' ') ?? '';
+    if (institucion.length < 3 || institucion.length > 100) {
+      throw new Error('Escribe el nombre de la institución (entre 3 y 100 caracteres).');
     }
   }
 
@@ -139,17 +149,62 @@ export class AuthService {
     const existente = await this.obtenerPerfil(true);
     if (existente) return existente;
 
-    const base = { uid: usuario.uid, nombre, fechaActualizacion: new Date().toISOString() };
-    const nuevo: Record<string, unknown> = solicitud.rol === 'docente' && solicitud.codigoInvitacion
-      ? { ...base, rol: 'docente', institucion: solicitud.codigoInvitacion.split('-')[0], codigoInvitacion: solicitud.codigoInvitacion }
-      : { ...base, rol: 'estudiante', institucion: '' };
+    const nombreLimpio = nombre.trim().replace(/\s+/g, ' ');
+    if (!nombreLimpio || nombreLimpio.length > 80) throw new Error('El nombre debe tener entre 1 y 80 caracteres.');
+    const profileRef = doc(this.firestore, 'usuarios', usuario.uid);
+    let perfilExistente: Usuario | null = null;
     try {
-      await setDoc(doc(this.firestore, 'usuarios', usuario.uid), nuevo);
+      await runTransaction(this.firestore, async (transaction) => {
+        perfilExistente = null;
+        const captura = await transaction.get(profileRef);
+        if (captura.exists()) {
+          perfilExistente = captura.data() as Usuario;
+          return;
+        }
+
+        const base = { uid: usuario.uid, nombre: nombreLimpio, fechaActualizacion: new Date().toISOString() };
+        let nuevo: Record<string, unknown> = { ...base, rol: 'estudiante', institucion: '' };
+        if (solicitud.rol === 'docente') {
+          const institucion = solicitud.institucion?.trim().replace(/\s+/g, ' ') ?? '';
+          if (solicitud.codigoInvitacion?.trim()) {
+            const codigo = solicitud.codigoInvitacion.trim();
+            const codigoRef = doc(this.firestore, 'codigos_invitacion', codigo);
+            const invitacion = await transaction.get(codigoRef);
+            const datosInvitacion = invitacion.data();
+            const usos = datosInvitacion?.['usos'];
+            const maxUsos = datosInvitacion?.['maxUsos'];
+            if (!invitacion.exists()
+              || datosInvitacion?.['activo'] !== true
+              || datosInvitacion?.['institucion'] !== institucion
+              || !Number.isInteger(usos)
+              || !Number.isInteger(maxUsos)
+              || usos >= maxUsos) {
+              throw new CodigoDocenteInvalidoError();
+            }
+            transaction.update(codigoRef, { usos: usos + 1 });
+            nuevo = {
+              ...base,
+              rol: 'docente',
+              institucion: datosInvitacion['institucion'],
+              codigoInvitacion: codigo,
+            };
+          } else {
+            nuevo = { ...base, rol: 'docente', institucion, modoPrueba: true };
+          }
+        }
+        transaction.set(profileRef, nuevo);
+      });
     } catch (error) {
-      if (solicitud.rol === 'docente' && (error as { code?: string }).code === 'permission-denied') throw new CodigoDocenteInvalidoError();
+      if (solicitud.rol === 'docente' && solicitud.codigoInvitacion?.trim() && error && typeof error === 'object'
+        && 'code' in error && error.code === 'permission-denied') {
+        throw new CodigoDocenteInvalidoError();
+      }
       throw error;
     }
-    return (await this.obtenerPerfil(true)) as Usuario;
+    if (perfilExistente) return perfilExistente;
+    const creado = await this.obtenerPerfil(true);
+    if (!creado) throw new Error('No se pudo crear el perfil de la cuenta.');
+    return creado;
   }
 
   private async terminarAccesoGoogle(credencial: Awaited<ReturnType<typeof signInWithPopup>>, solicitud: SolicitudRegistro): Promise<void> {
@@ -175,15 +230,16 @@ export class AuthService {
       await this.terminarAccesoGoogle(credencial, solicitud);
     } catch (error) {
       sessionStorage.setItem(CLAVE_ERROR_ACCESO, error instanceof CodigoDocenteInvalidoError
-        ? 'El código de invitación no es válido o ya no está activo.'
+        ? 'El código docente no está activo o no corresponde al nombre de institución indicado.'
         : 'No pudimos completar el registro con Google. Intenta nuevamente.');
       await this.router.navigateByUrl('/login');
     }
   }
 
   async actualizarNombre(usuario: User, nombre: string): Promise<void> {
-    const nombreLimpio = nombre.trim();
+    const nombreLimpio = nombre.trim().replace(/\s+/g, ' ');
     if (!nombreLimpio) throw new Error('El nombre no puede estar vacío.');
+    if (nombreLimpio.length > 80) throw new Error('El nombre no puede superar los 80 caracteres.');
     await updateDoc(doc(this.firestore, 'usuarios', usuario.uid), {
       nombre: nombreLimpio,
       fechaActualizacion: new Date().toISOString(),

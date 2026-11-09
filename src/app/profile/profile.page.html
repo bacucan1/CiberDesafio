@@ -29,19 +29,23 @@
         @if (error) { <ion-text color="danger"><p class="notice" role="alert">{{ error }}</p></ion-text> }
         @if (mensaje) { <ion-text color="success"><p class="notice" role="status">{{ mensaje }}</p></ion-text> }
 
-        <div class="profile-form">
+        <form class="profile-form" (ngSubmit)="guardar()">
           <ion-list lines="full">
             <ion-item>
-              <ion-label position="stacked">Nombre para mostrar</ion-label>
-              <ion-input name="nombre" [(ngModel)]="nombre" autocomplete="name" maxlength="100" required></ion-input>
+              <ion-label position="stacked">Nombre</ion-label>
+              <ion-input name="nombre" [(ngModel)]="nombre" autocomplete="name" maxlength="80" [disabled]="guardando" required></ion-input>
             </ion-item>
             <ion-item>
-              <ion-label position="stacked">Correo de la cuenta</ion-label>
+              <ion-label position="stacked">Correo (no editable)</ion-label>
               <ion-input [value]="usuario?.email || 'No disponible'" readonly></ion-input>
             </ion-item>
           </ion-list>
+          <p class="profile-hint">Tu correo se usa para iniciar sesión y no se puede cambiar desde esta pantalla.</p>
 
-          <div class="section-title"><h2>Información académica</h2><p>Estos datos los administra el equipo de la institución.</p></div>
+          <div class="section-title"><h2>Información académica</h2><p>Estos datos no se pueden editar desde aquí; en modo de prueba, la institución no está verificada.</p></div>
+          @if (perfil.modoPrueba) {
+            <p class="profile-hint">Perfil de prueba: el nombre de la institución fue escrito por el docente y no ha sido verificado.</p>
+          }
           <div class="details-grid">
             <article><span>Rol</span><strong>{{ perfil.rol === 'docente' ? 'Docente' : 'Estudiante' }}</strong></article>
             <article><span>Institución</span><strong>{{ perfil.institucion || 'Sin asignar' }}</strong></article>
@@ -77,13 +81,13 @@
           }
 
           <div class="actions">
-            <ion-button type="button" [disabled]="guardando || !nombre.trim()" (click)="guardar()">
+            <ion-button type="submit" [disabled]="guardando || !hayCambios">
               {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
             </ion-button>
-            <ion-button type="button" fill="outline" [disabled]="guardando" (click)="cancelarEdicion()">Cancelar</ion-button>
+            <ion-button type="button" fill="outline" [disabled]="guardando || !hayCambios" (click)="cancelarEdicion()">Cancelar</ion-button>
             <ion-button type="button" fill="clear" color="medium" (click)="cerrarSesion()">Cerrar sesión</ion-button>
           </div>
-        </div>
+        </form>
       </section>
     } @else if (error) {
       <ion-text color="danger"><p class="notice" role="alert">{{ error }}</p></ion-text>

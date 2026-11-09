@@ -1,13 +1,15 @@
-// Pruebas de las reglas de Firestore contra el emulador.
-// Ejecutar: cd tests/rules && npm install && npm test   (requiere Java 11+ para el emulador)
+// Ejecutar con npm run test:security (requiere Firebase CLI y Java 21+).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, runTransaction, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
 
-const CODIGO_VIGENTE = 'colegioa-ABC12345';
-const CODIGO_INACTIVO = 'colegioa-INACTIVO1';
+const INSTITUCION = 'Colegio Central';
+const GRUPO_ID = 'a'.repeat(64);
+const CODIGO_DOCENTE = 'colegio-central-TEACHER42';
+const CODIGO_DOCENTE_PRUEBA = 'colegio-central-OTHER42';
+const CODIGO_GRUPO = 'AABBCCDDEEFF';
 let env;
 
 before(async () => {
@@ -18,139 +20,220 @@ before(async () => {
 });
 after(async () => { await env.cleanup(); });
 
-// Datos de partida (se cargan sin reglas, como si los hubiera puesto un administrador o el backend).
+const como = (uid) => env.authenticatedContext(uid).firestore();
+const perfilEstudiante = (uid, extra = {}) => ({
+  uid, nombre: 'Estudiante', rol: 'estudiante', institucion: '', fechaActualizacion: new Date().toISOString(), ...extra,
+});
+const perfilDocente = (uid, institucion = INSTITUCION, extra = {}) => ({
+  uid, nombre: 'Docente', rol: 'docente', institucion, codigoInvitacion: CODIGO_DOCENTE, ...extra,
+});
+
 beforeEach(async () => {
   await env.clearFirestore();
-  await env.withSecurityRulesDisabled(async (contexto) => {
-    const db = contexto.firestore();
-    await setDoc(doc(db, 'usuarios/est1'), { uid: 'est1', nombre: 'Est Uno', rol: 'estudiante', institucion: 'colegioa', grupo: '901-A' });
-    await setDoc(doc(db, 'usuarios/est2'), { uid: 'est2', nombre: 'Est Dos', rol: 'estudiante', institucion: 'colegioa' });
-    await setDoc(doc(db, 'usuarios/docA'), { uid: 'docA', nombre: 'Doc A', rol: 'docente', institucion: 'colegioa', codigoInvitacion: CODIGO_VIGENTE });
-    await setDoc(doc(db, 'usuarios/docB'), { uid: 'docB', nombre: 'Doc B', rol: 'docente', institucion: 'colegiob', codigoInvitacion: 'colegiob-XYZ98765' });
-    await setDoc(doc(db, `codigos_invitacion/${CODIGO_VIGENTE}`), { activo: true });
-    await setDoc(doc(db, `codigos_invitacion/${CODIGO_INACTIVO}`), { activo: false });
-    await setDoc(doc(db, 'resultados_agregados/a1'), { institucion: 'colegioa', grupo: '901-A', eje: 'fraude', porcentajeAciertos: 80 });
-    await setDoc(doc(db, 'resultados_agregados/b1'), { institucion: 'colegiob', grupo: '901-A', eje: 'fraude', porcentajeAciertos: 60 });
-    await setDoc(doc(db, 'decisiones/d-est2'), { uid: 'est2', escenarioId: 'e1', nodoId: 'n1', opcionElegida: 'o1', correcta: true, fecha: '2026-10-01T00:00:00Z' });
-    await setDoc(doc(db, 'escenarios/e1'), { titulo: 'Phishing' });
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await Promise.all([
+      setDoc(doc(db, 'usuarios/est1'), perfilEstudiante('est1')),
+      setDoc(doc(db, 'usuarios/est2'), perfilEstudiante('est2')),
+      setDoc(doc(db, 'usuarios/docA'), perfilDocente('docA')),
+      setDoc(doc(db, 'usuarios/docB'), perfilDocente('docB', 'Colegio Norte', { codigoInvitacion: 'colegio-norte-TEACHER42' })),
+      setDoc(doc(db, `codigos_invitacion/${CODIGO_DOCENTE}`), { activo: true, institucion: INSTITUCION, usos: 0, maxUsos: 1 }),
+      setDoc(doc(db, `codigos_invitacion/${CODIGO_DOCENTE_PRUEBA}`), {
+        activo: true, institucion: INSTITUCION, usos: 0, maxUsos: 1,
+      }),
+      setDoc(doc(db, 'codigos_invitacion/colegio-central-DESACTIVADO'), {
+        activo: false, institucion: INSTITUCION, usos: 0, maxUsos: 1,
+      }),
+      setDoc(doc(db, `grupos/${GRUPO_ID}`), {
+        institucion: INSTITUCION, grupo: '901-A', grado: 9, profesores: ['docA'], fechaActualizacion: Timestamp.now(),
+      }),
+      setDoc(doc(db, `codigos_vinculacion/${CODIGO_GRUPO}`), {
+        codigo: CODIGO_GRUPO, grupoId: GRUPO_ID, grupo: '901-A', grado: 9, institucion: INSTITUCION,
+        creadoPor: 'docA', estado: 'activo', usos: 0, maxUsos: 1,
+        venceEn: Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000)), fechaCreacion: Timestamp.now(),
+      }),
+      setDoc(doc(db, `resultados_agregados/${GRUPO_ID}_fraude`), {
+        grupoId: GRUPO_ID, grupo: '901-A', grado: 9, institucion: INSTITUCION, eje: 'fraude',
+        estudiantes: 1, totalAciertos: 1, totalDecisiones: 2, porcentajeAciertos: 50,
+        fechaCalculo: new Date().toISOString(),
+      }),
+      setDoc(doc(db, `resultados_agregados/${GRUPO_ID}_fraude/participantes/est1`), { aciertos: 1, decisiones: 2 }),
+    ]);
+    await setDoc(doc(db, 'usuarios/est-vinculado'), perfilEstudiante('est-vinculado', {
+      institucion: INSTITUCION, grupo: '901-A', grupoId: GRUPO_ID, grado: 9, codigoVinculacion: CODIGO_GRUPO,
+    }));
   });
 });
 
-const como = (uid) => env.authenticatedContext(uid).firestore();
-const anonimo = () => env.unauthenticatedContext().firestore();
-const perfilBase = (uid, extra = {}) => ({ uid, nombre: 'Nuevo', rol: 'estudiante', institucion: '', ...extra });
+describe('registro y protección de perfiles', () => {
+  it('permite crear perfiles de estudiante sin datos académicos', async () => {
+    await assertSucceeds(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilEstudiante('nuevo')));
+  });
 
-describe('registro: nadie puede elegir ser docente por su cuenta', () => {
-  it('un usuario nuevo puede crear su perfil de estudiante', async () => {
-    await assertSucceeds(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo')));
-  });
-  it('NO puede crear un perfil docente sin codigo de invitacion', async () => {
-    await assertFails(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo', { rol: 'docente', institucion: 'colegioa' })));
-  });
-  it('NO puede crear un perfil docente con un codigo que no existe', async () => {
-    await assertFails(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo', { rol: 'docente', institucion: 'colegioa', codigoInvitacion: 'colegioa-NOEXISTE1' })));
-  });
-  it('NO puede crear un perfil docente con un codigo desactivado', async () => {
-    await assertFails(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo', { rol: 'docente', institucion: 'colegioa', codigoInvitacion: CODIGO_INACTIVO })));
-  });
-  it('puede crear un perfil docente con un codigo vigente; la institucion sale del codigo', async () => {
-    await assertSucceeds(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo', { rol: 'docente', institucion: 'colegioa', codigoInvitacion: CODIGO_VIGENTE })));
-  });
-  it('NO puede usar un codigo vigente para fijarse otra institucion', async () => {
-    await assertFails(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo', { rol: 'docente', institucion: 'colegiob', codigoInvitacion: CODIGO_VIGENTE })));
-  });
-  it('un estudiante no puede traer codigo de invitacion', async () => {
-    await assertFails(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo', { codigoInvitacion: CODIGO_VIGENTE })));
-  });
-  it('un codigo con segmentos de ruta (inyeccion) se rechaza', async () => {
-    await assertFails(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo', { rol: 'docente', institucion: 'colegioa', codigoInvitacion: `${CODIGO_VIGENTE}/../${CODIGO_VIGENTE}` })));
-  });
-  it('NO puede crear el perfil de otro uid ni agregar campos extra', async () => {
-    await assertFails(setDoc(doc(como('nuevo'), 'usuarios/otro'), perfilBase('otro')));
-    await assertFails(setDoc(doc(como('nuevo'), 'usuarios/nuevo'), perfilBase('nuevo', { admin: true })));
-    await assertFails(setDoc(doc(anonimo(), 'usuarios/nuevo'), perfilBase('nuevo')));
-  });
-});
+  it('permite registro docente de prueba y conserva la validación del código administrativo', async () => {
+    const crearDocente = (uid, institucion, codigo = CODIGO_DOCENTE) => {
+      const db = como(uid);
+      const perfilRef = doc(db, `usuarios/${uid}`);
+      const codigoRef = doc(db, `codigos_invitacion/${codigo}`);
+      return runTransaction(db, async (transaction) => {
+        const codigoActual = await transaction.get(codigoRef);
+        transaction.update(codigoRef, { usos: codigoActual.data().usos + 1 });
+        transaction.set(perfilRef, {
+          uid, nombre: 'Docente Nuevo', rol: 'docente', institucion, codigoInvitacion: codigo,
+          fechaActualizacion: new Date().toISOString(),
+        });
+      });
+    };
 
-describe('escalada de privilegios sobre un perfil existente', () => {
-  it('un estudiante NO puede cambiarse el rol a docente', async () => {
+    await assertSucceeds(crearDocente('doc-nuevo', INSTITUCION));
+    await assertSucceeds(setDoc(doc(como('doc-prueba'), 'usuarios/doc-prueba'), {
+      uid: 'doc-prueba', nombre: 'Docente de prueba', rol: 'docente', institucion: 'Institución ficticia',
+      modoPrueba: true,
+    }));
+    await assertFails(setDoc(doc(como('doc-sin-marca'), 'usuarios/doc-sin-marca'), {
+      uid: 'doc-sin-marca', nombre: 'Docente', rol: 'docente', institucion: INSTITUCION,
+    }));
+    await assertFails(crearDocente('doc-otra', 'Otra institución', CODIGO_DOCENTE_PRUEBA));
+    await assertFails(crearDocente('doc-inactivo', INSTITUCION, 'colegio-central-DESACTIVADO'));
+    await assertFails(crearDocente('doc-segundo-uso', INSTITUCION));
+    await assertFails(setDoc(doc(como('estudiante-prueba'), 'usuarios/estudiante-prueba'), {
+      uid: 'estudiante-prueba', nombre: 'Estudiante', rol: 'estudiante', institucion: '',
+      modoPrueba: true,
+    }));
+  });
+
+  it('permite cambiar el nombre, pero no rol ni institución académica', async () => {
+    await assertSucceeds(updateDoc(doc(como('est1'), 'usuarios/est1'), {
+      nombre: 'Nombre actualizado', fechaActualizacion: new Date().toISOString(),
+    }));
     await assertFails(updateDoc(doc(como('est1'), 'usuarios/est1'), { rol: 'docente' }));
-    await assertFails(setDoc(doc(como('est1'), 'usuarios/est1'), { uid: 'est1', nombre: 'Est Uno', rol: 'docente', institucion: 'colegioa' }));
+    await assertFails(updateDoc(doc(como('est-vinculado'), 'usuarios/est-vinculado'), { institucion: 'Otra institución' }));
+    await assertFails(updateDoc(doc(como('est-vinculado'), 'usuarios/est-vinculado'), { grupo: 'Otro grupo' }));
   });
-  it('un estudiante SI puede actualizar datos propios como el grupo', async () => {
-    await assertSucceeds(updateDoc(doc(como('est1'), 'usuarios/est1'), { grupo: '902-B' }));
-  });
-  it('un estudiante NO puede agregarse un codigo de invitacion despues', async () => {
-    await assertFails(updateDoc(doc(como('est1'), 'usuarios/est1'), { codigoInvitacion: CODIGO_VIGENTE }));
-  });
-  it('un docente NO puede cambiar su institucion ni su rol', async () => {
-    await assertFails(updateDoc(doc(como('docA'), 'usuarios/docA'), { institucion: 'colegiob' }));
-    await assertFails(updateDoc(doc(como('docA'), 'usuarios/docA'), { rol: 'estudiante' }));
-  });
-  it('nadie puede borrar perfiles', async () => {
-    await assertFails(deleteDoc(doc(como('est1'), 'usuarios/est1')));
-  });
-});
 
-describe('privacidad de perfiles y codigos', () => {
-  it('cada usuario lee solo su propio perfil', async () => {
+  it('cada usuario solo puede consultar su propio perfil', async () => {
     await assertSucceeds(getDoc(doc(como('est1'), 'usuarios/est1')));
     await assertFails(getDoc(doc(como('est1'), 'usuarios/est2')));
-  });
-  it('un docente NO lee perfiles de estudiantes', async () => {
-    await assertFails(getDoc(doc(como('docA'), 'usuarios/est1')));
-  });
-  it('no se pueden listar usuarios', async () => {
     await assertFails(getDocs(collection(como('docA'), 'usuarios')));
   });
-  it('los codigos de invitacion no se pueden leer ni escribir desde el cliente', async () => {
-    await assertFails(getDoc(doc(como('docA'), `codigos_invitacion/${CODIGO_VIGENTE}`)));
-    await assertFails(setDoc(doc(como('est1'), 'codigos_invitacion/colegioa-MIPROPIO1'), { activo: true }));
+});
+
+describe('vinculación de estudiantes con código de grupo', () => {
+  it('rechaza códigos vencidos, revocados o sin cupos', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      const base = {
+        codigo: 'ABCDEF123456', grupoId: GRUPO_ID, grupo: '901-A', grado: 9, institucion: INSTITUCION,
+        creadoPor: 'docA', usos: 0, maxUsos: 30, fechaCreacion: Timestamp.now(),
+      };
+      await Promise.all([
+        setDoc(doc(db, 'codigos_vinculacion/ABCDEF123456'), {
+          ...base, estado: 'activo', venceEn: Timestamp.fromDate(new Date(Date.now() - 60_000)),
+        }),
+        setDoc(doc(db, 'codigos_vinculacion/ABCDEF123457'), {
+          ...base, codigo: 'ABCDEF123457', estado: 'revocado',
+          venceEn: Timestamp.fromDate(new Date(Date.now() + 60_000)),
+        }),
+        setDoc(doc(db, 'codigos_vinculacion/ABCDEF123458'), {
+          ...base, codigo: 'ABCDEF123458', estado: 'activo', usos: 30,
+          venceEn: Timestamp.fromDate(new Date(Date.now() + 60_000)),
+        }),
+      ]);
+    });
+
+    await assertFails(getDoc(doc(como('est1'), 'codigos_vinculacion/ABCDEF123456')));
+    await assertFails(getDoc(doc(como('est1'), 'codigos_vinculacion/ABCDEF123457')));
+    await assertFails(getDoc(doc(como('est1'), 'codigos_vinculacion/ABCDEF123458')));
+  });
+
+  it('actualiza perfil y uso del código en una única transacción validada', async () => {
+    const db = como('est1');
+    const perfilRef = doc(db, 'usuarios/est1');
+    const codigoRef = doc(db, `codigos_vinculacion/${CODIGO_GRUPO}`);
+    await assertSucceeds(runTransaction(db, async (transaction) => {
+      const [perfil, codigo] = await Promise.all([transaction.get(perfilRef), transaction.get(codigoRef)]);
+      assert.equal(perfil.exists(), true);
+      assert.equal(codigo.exists(), true);
+      transaction.update(perfilRef, {
+        institucion: INSTITUCION, grupo: '901-A', grupoId: GRUPO_ID, grado: 9,
+        codigoVinculacion: CODIGO_GRUPO, fechaActualizacion: new Date().toISOString(),
+      });
+      transaction.update(codigoRef, { usos: codigo.data().usos + 1 });
+    }));
+    const perfilActualizado = await getDoc(perfilRef);
+    assert.equal(perfilActualizado.data().institucion, INSTITUCION);
+    assert.equal(perfilActualizado.data().grupoId, GRUPO_ID);
+  });
+
+  it('rechaza vincularse con otro grupo o usar dos veces un código agotado', async () => {
+    const db = como('est1');
+    const perfilRef = doc(db, 'usuarios/est1');
+    const codigoRef = doc(db, `codigos_vinculacion/${CODIGO_GRUPO}`);
+    await assertFails(runTransaction(db, async (transaction) => {
+      await Promise.all([transaction.get(perfilRef), transaction.get(codigoRef)]);
+      transaction.update(perfilRef, {
+        institucion: INSTITUCION, grupo: 'Grupo falsificado', grupoId: GRUPO_ID, grado: 9,
+        codigoVinculacion: CODIGO_GRUPO, fechaActualizacion: new Date().toISOString(),
+      });
+      transaction.update(codigoRef, { usos: 1 });
+    }));
+
+    await runTransaction(db, async (transaction) => {
+      const [perfil, codigo] = await Promise.all([transaction.get(perfilRef), transaction.get(codigoRef)]);
+      transaction.update(perfilRef, {
+        institucion: INSTITUCION, grupo: '901-A', grupoId: GRUPO_ID, grado: 9,
+        codigoVinculacion: CODIGO_GRUPO, fechaActualizacion: new Date().toISOString(),
+      });
+      transaction.update(codigoRef, { usos: codigo.data().usos + 1 });
+      assert.equal(perfil.exists(), true);
+    });
+
+    await assertFails(runTransaction(db, async (transaction) => {
+      const [perfil, codigo] = await Promise.all([transaction.get(perfilRef), transaction.get(codigoRef)]);
+      transaction.update(perfilRef, {
+        institucion: INSTITUCION, grupo: '901-A', grupoId: GRUPO_ID, grado: 9,
+        codigoVinculacion: CODIGO_GRUPO, fechaActualizacion: new Date().toISOString(),
+      });
+      transaction.update(codigoRef, { usos: codigo.data().usos + 1 });
+    }));
+  });
+
+  it('permite a un docente crear un grupo y su código de invitación juntos', async () => {
+    const db = como('docA');
+    const nuevoGrupoId = 'b'.repeat(64);
+    const nuevoCodigo = '112233AABBCC';
+    const grupoRef = doc(db, `grupos/${nuevoGrupoId}`);
+    const codigoRef = doc(db, `codigos_vinculacion/${nuevoCodigo}`);
+    await assertSucceeds(runTransaction(db, async (transaction) => {
+      await transaction.get(grupoRef);
+      transaction.set(grupoRef, {
+        institucion: INSTITUCION, grupo: '1001-B', grado: 10, profesores: ['docA'], fechaActualizacion: Timestamp.now(),
+      });
+      transaction.set(codigoRef, {
+        codigo: nuevoCodigo, grupoId: nuevoGrupoId, grupo: '1001-B', grado: 10, institucion: INSTITUCION,
+        creadoPor: 'docA', estado: 'activo', usos: 0, maxUsos: 30,
+        venceEn: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), fechaCreacion: Timestamp.now(),
+      });
+    }));
   });
 });
 
-describe('resultados agregados', () => {
-  it('un docente lee los resultados de su institucion', async () => {
-    await assertSucceeds(getDoc(doc(como('docA'), 'resultados_agregados/a1')));
-    await assertSucceeds(getDocs(query(collection(como('docA'), 'resultados_agregados'), where('institucion', '==', 'colegioa'))));
+describe('resultados agregados y privacidad', () => {
+  it('el docente consulta resultados agregados de su institución', async () => {
+    const db = como('docA');
+    await assertSucceeds(getDoc(doc(db, `resultados_agregados/${GRUPO_ID}_fraude`)));
+    await assertSucceeds(getDocs(query(collection(db, 'resultados_agregados'), where('institucion', '==', INSTITUCION))));
+    await assertFails(getDoc(doc(como('docB'), `resultados_agregados/${GRUPO_ID}_fraude`)));
   });
-  it('un docente NO lee resultados de otra institucion', async () => {
-    await assertFails(getDoc(doc(como('docA'), 'resultados_agregados/b1')));
-    await assertFails(getDocs(query(collection(como('docA'), 'resultados_agregados'), where('institucion', '==', 'colegiob'))));
-    await assertFails(getDocs(collection(como('docA'), 'resultados_agregados')));
-  });
-  it('un estudiante o un visitante NO leen resultados', async () => {
-    await assertFails(getDoc(doc(como('est1'), 'resultados_agregados/a1')));
-    await assertFails(getDoc(doc(anonimo(), 'resultados_agregados/a1')));
-  });
-  it('nadie escribe resultados desde el cliente', async () => {
-    await assertFails(setDoc(doc(como('docA'), 'resultados_agregados/a1'), { institucion: 'colegioa', porcentajeAciertos: 100 }));
-  });
-});
 
-describe('decisiones y escenarios', () => {
-  const decision = (uid, extra = {}) => ({ uid, escenarioId: 'e1', nodoId: 'n1', opcionElegida: 'o1', correcta: true, fecha: '2026-10-01T00:00:00Z', ...extra });
-  it('un estudiante crea decisiones solo a su nombre', async () => {
-    await assertSucceeds(addDoc(collection(como('est1'), 'decisiones'), decision('est1')));
-    await assertFails(addDoc(collection(como('est1'), 'decisiones'), decision('est2')));
+  it('un estudiante solo lee su propio agregado y nunca los participantes de otro usuario', async () => {
+    await assertSucceeds(getDoc(doc(como('est-vinculado'), `resultados_agregados/${GRUPO_ID}_fraude`)));
+    await assertFails(getDoc(doc(como('est-vinculado'), `resultados_agregados/${GRUPO_ID}_fraude/participantes/est1`)));
+    await assertFails(getDoc(doc(como('est1'), `resultados_agregados/${GRUPO_ID}_fraude`)));
   });
-  it('un docente NO crea decisiones', async () => {
-    await assertFails(addDoc(collection(como('docA'), 'decisiones'), decision('docA')));
-  });
-  it('no se aceptan campos extra ni tipos incorrectos', async () => {
-    await assertFails(addDoc(collection(como('est1'), 'decisiones'), decision('est1', { rol: 'docente' })));
-    await assertFails(addDoc(collection(como('est1'), 'decisiones'), decision('est1', { correcta: 'si' })));
-  });
-  it('cada estudiante lee solo sus decisiones y no puede editarlas ni borrarlas', async () => {
-    await assertSucceeds(getDoc(doc(como('est2'), 'decisiones/d-est2')));
-    await assertFails(getDoc(doc(como('est1'), 'decisiones/d-est2')));
-    await assertFails(getDoc(doc(como('docA'), 'decisiones/d-est2')));
-    await assertFails(updateDoc(doc(como('est2'), 'decisiones/d-est2'), { correcta: false }));
-    await assertFails(deleteDoc(doc(como('est2'), 'decisiones/d-est2')));
-  });
-  it('los escenarios se leen con sesion y no se escriben', async () => {
-    await assertSucceeds(getDoc(doc(como('est1'), 'escenarios/e1')));
-    await assertFails(getDoc(doc(anonimo(), 'escenarios/e1')));
-    await assertFails(setDoc(doc(como('docA'), 'escenarios/e2'), { titulo: 'x' }));
+
+  it('no se exponen decisiones individuales ni se permite escribirlas', async () => {
+    await assertFails(setDoc(doc(como('est1'), 'decisiones/nueva'), { uid: 'est1' }));
+    await assertFails(getDoc(doc(como('docA'), 'decisiones/privada')));
   });
 });

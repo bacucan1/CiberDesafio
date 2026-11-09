@@ -31,6 +31,7 @@ export class TeacherPage implements OnInit {
   error = '';
   mensaje = '';
   private resultadosDelGrupoCache: { clave: string; datos: GroupResults[] } | null = null;
+  actualizando = false;
 
   constructor() {
     addIcons({ barChart, people, shieldCheckmark });
@@ -42,7 +43,7 @@ export class TeacherPage implements OnInit {
       if (!usuario) return;
       const perfil = await this.auth.obtenerPerfil();
       if (!perfil || perfil.rol !== 'docente' || !perfil.institucion) {
-        this.error = 'Tu cuenta docente aún necesita aprobación institucional. Contacta al administrador de tu institución.';
+        this.error = 'No encontramos una institución de prueba en tu perfil. Vuelve a registrarte como docente.';
         return;
       }
       this.institucion = perfil.institucion;
@@ -115,6 +116,22 @@ export class TeacherPage implements OnInit {
     }
   }
 
+  async actualizarDatos(): Promise<void> {
+    if (this.actualizando) return;
+    this.actualizando = true;
+    this.error = '';
+    this.mensaje = '';
+    try {
+      await this.cargarDatos();
+      this.mensaje = 'Los resultados y códigos se actualizaron.';
+    } catch (error: unknown) {
+      console.error('No se pudieron actualizar los datos del panel docente.', error);
+      this.error = this.mensajeServicio(error, 'No se pudieron actualizar los datos. Intenta nuevamente.');
+    } finally {
+      this.actualizando = false;
+    }
+  }
+
   get resultadosDelGrupo(): GroupResults[] {
     const cache = this.resultadosDelGrupoCache;
     if (cache && cache.clave === this.grupoSeleccionado) {
@@ -130,9 +147,17 @@ export class TeacherPage implements OnInit {
 
   get promedio(): number | null {
     const datos = this.resultadosDelGrupo;
-    return datos.length
-      ? Math.round(datos.reduce((suma, resultado) => suma + resultado.porcentajeAciertos, 0) / datos.length)
+    const decisiones = datos.reduce((suma, resultado) => suma + resultado.totalDecisiones, 0);
+    return decisiones > 0
+      ? Math.round(datos.reduce((suma, resultado) => suma + resultado.totalAciertos, 0) / decisiones * 100)
       : null;
+  }
+
+  get ultimaActualizacion(): Date | null {
+    const fechas = this.resultadosDelGrupo
+      .map((resultado) => new Date(resultado.fechaCalculo))
+      .filter((fecha) => !Number.isNaN(fecha.getTime()));
+    return fechas.length ? new Date(Math.max(...fechas.map((fecha) => fecha.getTime()))) : null;
   }
 
   get cantidadEstudiantes(): number {

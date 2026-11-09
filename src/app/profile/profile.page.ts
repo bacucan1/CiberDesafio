@@ -51,9 +51,20 @@ export class ProfilePage implements OnInit {
 
   async guardar(): Promise<void> {
     if (!this.usuario || !this.perfil || this.guardando) return;
-    const nombreLimpio = this.nombre.trim();
+    const nombreLimpio = this.normalizarNombre(this.nombre);
     if (!nombreLimpio) {
       this.error = 'Escribe tu nombre para guardar los cambios.';
+      this.mensaje = '';
+      return;
+    }
+    if (nombreLimpio.length > 80) {
+      this.error = 'El nombre no puede superar los 80 caracteres.';
+      this.mensaje = '';
+      return;
+    }
+    if (nombreLimpio === this.perfil.nombre) {
+      this.nombre = this.perfil.nombre;
+      this.error = '';
       this.mensaje = '';
       return;
     }
@@ -103,6 +114,10 @@ export class ProfilePage implements OnInit {
     this.mensaje = '';
   }
 
+  get hayCambios(): boolean {
+    return !!this.perfil && this.normalizarNombre(this.nombre) !== this.perfil.nombre;
+  }
+
   cerrarSesion(): Promise<void> {
     return this.auth.salir();
   }
@@ -123,7 +138,16 @@ export class ProfilePage implements OnInit {
       : new Intl.DateTimeFormat('es-CO', { dateStyle: 'long' }).format(instante);
   }
 
+  private normalizarNombre(nombre: string): string {
+    return nombre.trim().replace(/\s+/g, ' ');
+  }
+
   private mensajeServicio(error: unknown, mensajePredeterminado: string): string {
+    if (error && typeof error === 'object' && 'code' in error) {
+      const code = String(error.code);
+      if (code === 'permission-denied') return 'El código no está vigente o no corresponde a la institución y grupo.';
+      if (code === 'unavailable' || code === 'network-request-failed') return 'No hay conexión con el servicio. Intenta nuevamente en unos minutos.';
+    }
     if (error && typeof error === 'object' && 'message' in error) {
       const message = String(error.message);
       if (message.includes('already-exists')) return 'Esta cuenta ya está vinculada a una institución. Contacta a un administrador para cambiarla.';

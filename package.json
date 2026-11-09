@@ -9,7 +9,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test:security": "firebase emulators:exec --project demo-ciberdesafio-security --only firestore \"vitest run security/firestore.rules.spec.ts\"",
+    "test:security": "npm --prefix tests/rules test",
     "lint": "ng lint"
   },
   "private": true,

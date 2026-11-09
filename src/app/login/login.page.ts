@@ -17,7 +17,7 @@ export class LoginPage {
   correo = '';
   clave = '';
   nombre = '';
-  codigoInvitacion = '';
+  institucion = '';
   registrando = false;
   error = this.auth.consumirErrorAcceso();
   solicitandoDocencia = false;
@@ -42,19 +42,32 @@ export class LoginPage {
       this.error = 'La contraseña debe tener al menos 6 caracteres.';
       return;
     }
-    if (this.registrando && !this.nombre.trim()) {
-      this.error = 'Escribe tu nombre para crear la cuenta.';
+    if (this.registrando) {
+      const nombre = this.nombre.trim().replace(/\s+/g, ' ');
+      if (!nombre) {
+        this.error = 'Escribe tu nombre para crear la cuenta.';
+        return;
+      }
+      if (nombre.length > 80) {
+        this.error = 'El nombre no puede superar los 80 caracteres.';
+        return;
+      }
+    }
+    if (this.registrando && this.solicitandoDocencia
+      && (this.institucion.trim().length < 3 || this.institucion.trim().length > 100)) {
+      this.error = 'Escribe el nombre de tu institución (entre 3 y 100 caracteres).';
       return;
     }
     this.cargando = true;
     try {
       if (this.registrando) {
         await this.auth.registrar(
-          this.nombre.trim(),
+          this.nombre.trim().replace(/\s+/g, ' '),
           correo,
           this.clave,
           this.solicitandoDocencia ? 'docente' : 'estudiante',
-          this.solicitandoDocencia ? this.codigoInvitacion.trim() : undefined,
+          undefined,
+          this.solicitandoDocencia ? this.institucion.trim().replace(/\s+/g, ' ') : undefined,
         );
       } else {
         await this.auth.ingresar(correo, this.clave);
@@ -73,7 +86,11 @@ export class LoginPage {
     this.cargando = true;
     try {
       const rol = this.registrando && this.solicitandoDocencia ? 'docente' : 'estudiante';
-      await this.auth.registrarseConGoogle(rol, rol === 'docente' ? this.codigoInvitacion.trim() : undefined);
+      await this.auth.registrarseConGoogle(
+        rol,
+        undefined,
+        rol === 'docente' ? this.institucion.trim().replace(/\s+/g, ' ') : undefined,
+      );
     } catch (error: unknown) {
       this.error = this.mensajeError(error);
     } finally {
@@ -108,7 +125,7 @@ export class LoginPage {
 
   private mensajeError(error: unknown): string {
     if (error instanceof CodigoDocenteInvalidoError) {
-      return 'El código de invitación no es válido o ya no está activo.';
+      return 'El código docente no está activo o no corresponde al nombre de institución indicado.';
     }
     const codigo = error && typeof error === 'object' && 'code' in error
       ? String(error.code)

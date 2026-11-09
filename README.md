@@ -69,7 +69,7 @@ Firebase Hosting
 ### Frontend
 
 - Pantalla de inicio y autenticación.
-- Recuperación de contraseña, registro de estudiantes y solicitud de acceso docente sujeta a aprobación administrativa.
+- Recuperación de contraseña y registro de estudiantes y docentes para pruebas.
 - Panel de perfil autenticado con nombre editable, correo, rol, institución, grado y grupo.
 - Vinculación de estudiantes mediante códigos de grupo con vencimiento, límite de usos y revocación.
 - Flujo de juego narrativo para estudiantes.
@@ -118,30 +118,30 @@ La aplicación estará disponible en `http://localhost:4200` o en el puerto indi
 
 ### Firebase
 
-1. Configura las credenciales del proyecto en `src/app/core/firebase.config.ts`.
+1. Configura las credenciales de un proyecto Firebase **exclusivo para pruebas** en `src/app/core/firebase.config.ts`.
 2. Activa Email/Password y Google en Firebase Authentication.
 3. Crea la base de datos de Firestore.
-4. Publica `firestore.rules` antes de habilitar el acceso de usuarios.
-5. El registro público crea únicamente perfiles de estudiante. Para habilitar un docente, crea primero su cuenta en Firebase Authentication y, con una cuenta administrativa de confianza, crea `usuarios/{uid}` en Firestore con `uid`, `nombre`, `rol: "docente"` e `institucion`. Los estudiantes se vinculan con un código de invitación; los clientes no pueden asignar ni cambiar roles.
+4. Publica `firestore.rules` únicamente en ese proyecto de pruebas.
+5. El registro de estudiantes crea perfiles sin institución. En modo de prueba, el docente puede escribir libremente el nombre de una institución ficticia y crear su cuenta sin código; el perfil queda marcado con `modoPrueba: true`. Luego puede crear grupos y compartir sus códigos con estudiantes para probar la vinculación y los resultados.
 
-Antes de publicar estas reglas en un proyecto existente, revisa los perfiles `usuarios/{uid}` ya creados: elimina o corrige cualquier rol docente que no haya sido asignado por un administrador. Las reglas nuevas impiden modificaciones posteriores desde clientes, pero no corrigen datos antiguos.
+**No uses estas reglas ni datos reales en producción.** Durante las pruebas, cualquier usuario autenticado puede crear un perfil docente de prueba y declarar una institución; utiliza únicamente datos ficticios. Antes de integrar una institución real, elimina esta vía de autorregistro docente, vuelve obligatorio un mecanismo de autorización administrativa y audita las reglas y los perfiles existentes.
 
-La app determina el rol leyendo el perfil de Firestore; el valor guardado en el navegador no concede permisos. Una solicitud docente no cambia el rol: el administrador debe aprobarla manualmente. El cliente verifica las decisiones contra el catálogo local y envía incrementos de métricas en transacciones Firestore. Las reglas evitan que un estudiante escriba en otro grupo y no permiten que el panel docente lea los contadores individuales; aun así, un cliente modificado puede falsificar su propia puntuación, porque no hay validación antifraude de servidor.
+La app determina el rol leyendo el perfil de Firestore; el valor guardado en el navegador no concede permisos. Desde `/docente`, el profesor crea un grupo y un código de hasta 30 usos con vencimiento a 14 días. El estudiante canjea ese código en `/perfil`; una transacción valida grupo, institución declarada, grado, vencimiento y cupo, y actualiza a la vez el perfil y los usos del código. No se puede cambiar de institución mediante una edición de perfil.
 
-La ruta `/perfil` muestra el correo y proveedor de inicio de sesión de Firebase, el rol y los datos académicos del perfil. Cada persona puede actualizar su nombre; el rol y la institución docente requieren actualización administrativa. Los estudiantes obtienen su institución, grado y grupo al canjear una invitación válida.
+La ruta `/perfil` muestra el correo (solo lectura), proveedor de inicio de sesión de Firebase, rol y datos académicos. Cada persona puede actualizar su nombre; se normalizan espacios y se permiten hasta 80 caracteres. Los datos académicos se obtienen del código de grupo validado y no se editan libremente.
 
-### Aprobación de instituciones y docentes
+### Al integrar instituciones reales
 
-Las cuentas docentes y las instituciones se habilitan con revisión manual desde Firebase Console; no hay autorregistro que otorgue permisos. Para procesar una solicitud de `solicitudes_docente/{uid}`:
+Actualmente no hay instituciones integradas: el alta docente sin código es solo para pruebas y no verifica identidad ni afiliación. No conectes estos datos ficticios con cuentas o registros reales. Para pasar a producción:
 
-1. Verifica la identidad del solicitante y la institución solicitada.
-2. Crea o confirma `instituciones/{slug}` con `nombre` exacto y `estado: "activa"`. El slug es el nombre en minúsculas, sin tildes y con espacios sustituidos por guiones (por ejemplo, `universidad-libre`).
-3. Actualiza `usuarios/{uid}` con `rol: "docente"` e `institucion` igual al nombre aprobado.
-4. Actualiza el estado de la solicitud a `aprobada` y registra la fecha de revisión.
+1. Define cómo una institución autorizará y administrará a sus docentes.
+2. Deshabilita en `firestore.rules` la creación de docentes con `modoPrueba: true`.
+3. Habilita solo un flujo de autorización verificable y prueba las reglas en el emulador.
+4. Migra/audita los perfiles y códigos existentes, y separa los proyectos Firebase de pruebas y producción.
 
-Para rechazar, actualiza únicamente el estado de la solicitud a `rechazada`. El perfil y la institución no deben modificarse desde el cliente.
+El proyecto conserva la validación transaccional de códigos administrativos como base para ese futuro flujo, pero el formulario actual de registro no los solicita.
 
-Una vez aprobado, el docente genera invitaciones por grupo desde `/docente`. El código vence en 14 días, permite hasta 30 usos y se puede revocar. El estudiante lo canjea en `/perfil` mediante una transacción que limita la vinculación a una sola institución. Los docentes solo consultan métricas agregadas de su institución, por grupo y grado. Los perfiles de estudiantes y su historial individual no se exponen al panel. Los agregados se calculan en el dispositivo y no deben tratarse como evidencia de evaluación verificada.
+El panel docente muestra resultados agregados por grupo y eje, cantidad de participantes, porcentaje global ponderado y prioridad de refuerzo; permite actualizar la vista manualmente. No muestra nombres, correos ni resultados individuales. Las métricas se calculan en el dispositivo y no deben tratarse como evidencia de evaluación verificada.
 
 ### API
 

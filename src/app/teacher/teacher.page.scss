@@ -32,7 +32,9 @@ ion-button { --border-radius: 8px; --color: #654fc7; font-size: .77rem; font-wei
 .invite-row ion-button { flex: 0 0 auto; }
 .results-section { margin-top: 10px; }
 .results-heading { margin-bottom: 17px; }
+.results-controls { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 10px; }
 .group-picker { flex: 0 1 240px; }
+.results-updated { color: var(--muted); font-size: .75rem; margin: 0 0 16px; text-align: right; }
 .overview { background: #382459; border-radius: 12px; color: white; display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 20px; overflow: hidden; }
 .overview > div { min-width: 0; padding: 21px; }
 .overview > div + div { border-left: 1px solid rgba(255,255,255,.16); }
@@ -59,6 +61,7 @@ ion-card-title { color: #241b3b; font-size: 1.42rem; margin-top: 10px; }
 @media (max-width: 760px) {
   .teacher-shell { padding: 34px 16px 60px; }
   .group-tools-heading, .results-heading { align-items: flex-start; flex-direction: column; }
+  .results-controls { align-items: stretch; width: 100%; }
   .privacy-chip { white-space: normal; }
   .invite-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .invite-form > ion-button { grid-column: 1 / -1; }

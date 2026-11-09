@@ -50,7 +50,7 @@
             </button>
           </div>
           @if (solicitandoDocencia) {
-            <p class="approval-note"><ion-icon name="information-circle" aria-hidden="true"></ion-icon> Para crear una cuenta docente necesitas un código de invitación vigente de tu institución.</p>
+            <p class="approval-note"><ion-icon name="information-circle" aria-hidden="true"></ion-icon> Modo de prueba: escribe cualquier nombre para la institución. No se verifica ni representa una institución integrada; usa solo datos ficticios.</p>
           }
         }
 
@@ -59,7 +59,7 @@
             <label class="field-label" for="account-name">Nombre completo</label>
             <div class="input-wrap">
               <ion-icon name="person" aria-hidden="true"></ion-icon>
-              <ion-input id="account-name" name="nombre" [(ngModel)]="nombre" autocomplete="name" placeholder="Tu nombre" maxlength="100" required></ion-input>
+              <ion-input id="account-name" name="nombre" [(ngModel)]="nombre" autocomplete="name" placeholder="Tu nombre" maxlength="80" required></ion-input>
             </div>
           }
           <label class="field-label" for="account-email">Correo electrónico</label>
@@ -68,10 +68,10 @@
             <ion-input id="account-email" name="correo" [(ngModel)]="correo" type="email" autocomplete="email" inputmode="email" placeholder="nombre@correo.com" required></ion-input>
           </div>
           @if (registrando && solicitandoDocencia) {
-            <label class="field-label" for="teacher-invitation">Código de invitación docente</label>
+            <label class="field-label" for="teacher-institution">Institución educativa</label>
             <div class="input-wrap">
-              <ion-icon name="key" aria-hidden="true"></ion-icon>
-              <ion-input id="teacher-invitation" name="codigoInvitacion" [(ngModel)]="codigoInvitacion" autocomplete="off" autocapitalize="off" placeholder="institucion-codigo" maxlength="64" required></ion-input>
+              <ion-icon name="business" aria-hidden="true"></ion-icon>
+              <ion-input id="teacher-institution" name="institucion" [(ngModel)]="institucion" autocomplete="organization" placeholder="Ej. Institución de prueba" maxlength="100" required></ion-input>
             </div>
           }
           <div class="password-heading">
@@ -97,11 +97,11 @@
 
         @if (!registrando) {
           <div class="separator"><span>o continúa con</span></div>
-          <ion-button class="google-button" fill="outline" expand="block" [disabled]="cargando" (click)="registrarseConGoogle()">
-            <ion-icon slot="start" name="logo-google" aria-hidden="true"></ion-icon>
-            Continuar con Google
-          </ion-button>
         }
+        <ion-button class="google-button" fill="outline" expand="block" [disabled]="cargando" (click)="registrarseConGoogle()">
+          <ion-icon slot="start" name="logo-google" aria-hidden="true"></ion-icon>
+          {{ registrando ? 'Crear cuenta con Google' : 'Continuar con Google' }}
+        </ion-button>
 
         <p class="form-footnote">
           {{ registrando ? '¿Ya tienes una cuenta?' : '¿Primera vez por aquí?' }}
