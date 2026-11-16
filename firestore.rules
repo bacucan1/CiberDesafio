@@ -135,6 +135,21 @@ service cloud.firestore {
         && camposPerfilValidos(nuevo);
     }
 
+    function actualizacionInstitucionDocentePermitida() {
+      let nuevo = request.resource.data;
+      let actual = resource.data;
+      return actual.rol == 'docente'
+        && actual.institucion == ''
+        && nuevo.diff(actual).affectedKeys().hasOnly(['institucion', 'modoPrueba', 'fechaActualizacion'])
+        && nuevo.uid == actual.uid
+        && nuevo.rol == actual.rol
+        && nuevo.institucion is string
+        && nuevo.institucion.size() >= 3
+        && nuevo.institucion.size() <= 100
+        && nuevo.modoPrueba == true
+        && camposPerfilValidos(nuevo);
+    }
+
     function vinculacionEstudiantePermitida(uid) {
       let nuevo = request.resource.data;
       let actual = resource.data;
@@ -189,8 +204,12 @@ service cloud.firestore {
     }
 
     function progresoEstudianteValido(grupoId, uid, datos) {
+      let xpAi = datos.get('xpAi', 0);
+      let desafiosAi = datos.get('desafiosAi', 0);
+      let aciertosAi = datos.get('aciertosAi', 0);
       return datos.keys().hasOnly([
           'uid', 'nombre', 'misionesCompletadas', 'xp', 'aciertos', 'decisiones',
+          'xpAi', 'desafiosAi', 'aciertosAi', 'ultimoDesafioAi',
           'fechaVinculacion', 'fechaActualizacion'
         ])
         && datos.keys().hasAll([
@@ -211,11 +230,46 @@ service cloud.firestore {
         && datos.aciertos is int
         && datos.aciertos >= 0
         && datos.decisiones >= datos.aciertos
-        && datos.xp == datos.aciertos * 100 + (datos.decisiones - datos.aciertos) * 25
+        && xpAi is int
+        && xpAi >= 0
+        && desafiosAi is int
+        && desafiosAi >= 0
+        && aciertosAi is int
+        && aciertosAi >= 0
+        && aciertosAi <= desafiosAi
+        && xpAi == aciertosAi * 120 + (desafiosAi - aciertosAi) * 25
+        && datos.xp == datos.aciertos * 100 + (datos.decisiones - datos.aciertos) * 25 + xpAi
+        && (!('ultimoDesafioAi' in datos) || datos.ultimoDesafioAi is string)
         && datos.fechaVinculacion is string
         && datos.fechaActualizacion is string
         && getAfter(ruta('usuarios', uid)).data.grupoId == grupoId
         && getAfter(ruta('usuarios', uid)).data.nombre == datos.nombre;
+    }
+
+    function actualizacionPuntajeAiValida(grupoId, uid) {
+      let actual = resource.data;
+      let nuevo = request.resource.data;
+      let desafioId = nuevo.get('ultimoDesafioAi', '');
+      let desafioPath = /databases/$(database)/documents/usuarios/$(uid)/resultados_ai/$(desafioId);
+      let desafio = getAfter(desafioPath).data;
+      return nuevo.diff(actual).affectedKeys().hasOnly([
+          'xp', 'xpAi', 'desafiosAi', 'aciertosAi', 'ultimoDesafioAi', 'fechaActualizacion'
+        ])
+        && desafioId is string
+        && desafioId.matches('^[a-f0-9-]{32,36}$')
+        && existsAfter(desafioPath)
+        && nuevo.misionesCompletadas == actual.misionesCompletadas
+        && nuevo.aciertos == actual.aciertos
+        && nuevo.decisiones == actual.decisiones
+        && nuevo.nombre == actual.nombre
+        && nuevo.fechaVinculacion == actual.fechaVinculacion
+        && nuevo.xp == actual.xp + desafio.puntos
+        && nuevo.xpAi == actual.get('xpAi', 0) + desafio.puntos
+        && nuevo.desafiosAi == actual.get('desafiosAi', 0) + 1
+        && nuevo.aciertosAi == actual.get('aciertosAi', 0) + (desafio.correcta ? 1 : 0)
+        && desafio.puntos == (desafio.correcta ? 120 : 25)
+        && nuevo.fechaActualizacion is string
+        && getAfter(ruta('usuarios', uid)).data.grupoId == grupoId;
     }
 
     function resultadoCoincideConPerfil(id, datos) {
@@ -340,7 +394,9 @@ service cloud.firestore {
       allow create: if autenticado() && request.auth.uid == uid && perfilNuevoValido(uid);
       allow update: if autenticado()
         && request.auth.uid == uid
-        && (actualizacionNombrePermitida() || vinculacionEstudiantePermitida(uid))
+        && (actualizacionNombrePermitida()
+          || actualizacionInstitucionDocentePermitida()
+          || vinculacionEstudiantePermitida(uid))
         || (autenticado() && desvinculacionDocentePermitida(uid));
       allow delete: if false;
 
@@ -372,6 +428,42 @@ service cloud.firestore {
             && request.resource.data.fecha is string;
           allow update, delete: if false;
         }
+      }
+
+      match /resultados_ai/{desafioId} {
+        function resultadoAiValido() {
+          let datos = request.resource.data;
+          let grupoId = perfilActual().get('grupoId', '');
+          let miembroPath = /databases/$(database)/documents/grupos/$(grupoId)/estudiantes/$(uid);
+          return autenticado()
+            && request.auth.uid == uid
+            && esEstudiante()
+            && desafioId.matches('^[a-f0-9-]{32,36}$')
+            && datos.keys().hasOnly(['puntos', 'correcta', 'fecha'])
+            && datos.keys().hasAll(['puntos', 'correcta', 'fecha'])
+            && datos.correcta is bool
+            && datos.puntos == (datos.correcta ? 120 : 25)
+            && datos.fecha is string
+            && (
+              !('grupoId' in perfilActual())
+              || (
+                grupoId is string
+                && grupoId.matches('^[a-f0-9]{64}$')
+                && exists(miembroPath)
+                && existsAfter(miembroPath)
+                && getAfter(miembroPath).data.ultimoDesafioAi == desafioId
+                && getAfter(miembroPath).data.xpAi == get(miembroPath).data.get('xpAi', 0) + datos.puntos
+                && getAfter(miembroPath).data.desafiosAi == get(miembroPath).data.get('desafiosAi', 0) + 1
+                && getAfter(miembroPath).data.aciertosAi
+                  == get(miembroPath).data.get('aciertosAi', 0) + (datos.correcta ? 1 : 0)
+              )
+            );
+        }
+
+        allow get: if autenticado() && request.auth.uid == uid;
+        allow list: if false;
+        allow create: if resultadoAiValido();
+        allow update, delete: if false;
       }
     }
 
@@ -500,7 +592,8 @@ service cloud.firestore {
           && resource.data.nombre is string
           && resource.data.fechaVinculacion is string
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'nombre', 'misionesCompletadas', 'xp', 'aciertos', 'decisiones', 'fechaActualizacion'
+            'nombre', 'misionesCompletadas', 'xp', 'aciertos', 'decisiones',
+            'xpAi', 'desafiosAi', 'aciertosAi', 'ultimoDesafioAi', 'fechaActualizacion'
           ])
           && progresoEstudianteValido(id, uid, request.resource.data)
           && (
@@ -510,6 +603,10 @@ service cloud.firestore {
               && request.resource.data.xp == resource.data.xp
               && request.resource.data.aciertos == resource.data.aciertos
               && request.resource.data.decisiones == resource.data.decisiones
+              && request.resource.data.get('xpAi', 0) == resource.data.get('xpAi', 0)
+              && request.resource.data.get('desafiosAi', 0) == resource.data.get('desafiosAi', 0)
+              && request.resource.data.get('aciertosAi', 0) == resource.data.get('aciertosAi', 0)
+              && request.resource.data.get('ultimoDesafioAi', '') == resource.data.get('ultimoDesafioAi', '')
             )
             || (
               request.resource.data.decisiones == resource.data.decisiones + 1
@@ -518,7 +615,12 @@ service cloud.firestore {
                 == (request.resource.data.aciertos == resource.data.aciertos + 1 ? 100 : 25)
               && request.resource.data.misionesCompletadas
                 in [resource.data.misionesCompletadas, resource.data.misionesCompletadas + 1]
+              && request.resource.data.get('xpAi', 0) == resource.data.get('xpAi', 0)
+              && request.resource.data.get('desafiosAi', 0) == resource.data.get('desafiosAi', 0)
+              && request.resource.data.get('aciertosAi', 0) == resource.data.get('aciertosAi', 0)
+              && request.resource.data.get('ultimoDesafioAi', '') == resource.data.get('ultimoDesafioAi', '')
             )
+            || actualizacionPuntajeAiValida(id, uid)
           );
         allow delete: if docenteDelGrupo(id)
           && resource.data.uid == uid

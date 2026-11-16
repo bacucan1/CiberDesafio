@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -7,6 +7,7 @@ import { Decision, Escenario, NodoDecision, OpcionDecision } from '../core/model
 import { AuthService } from '../core/services/auth.service';
 import { SimulationService } from '../core/services/simulation.service';
 import { DecisionQueueService } from '../core/services/decision-queue.service';
+import { DecisionService } from '../core/services/decision.service';
 import { ScenarioService } from '../core/services/scenario.service';
 import { LanguageSelectorComponent } from '../core/components/language-selector/language-selector.component';
 import { AiChallengeModalComponent } from '../core/components/ai-challenge-modal/ai-challenge-modal.component';
@@ -48,9 +49,11 @@ export class HomePage {
   mostrarModalAi = false;
   private readonly onboardingStorageKey = 'ciberdesafio.onboarding-completado';
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly auth = inject(AuthService);
   private readonly simulation = inject(SimulationService);
   private readonly decisionQueue = inject(DecisionQueueService);
+  private readonly decisionService = inject(DecisionService);
   private readonly scenarioCatalog = inject(ScenarioService);
   readonly pasosTutorial: TutorialStep[] = [
     {
@@ -136,6 +139,10 @@ export class HomePage {
   private inicioDeslizamiento?: number;
   cerrandoSesion = false;
   errorSesion = '';
+  aiAwardSaving = false;
+  aiAwardError = '';
+  aiSavedAwardId = '';
+  private readonly aiAwardsInSession = new Set<string>();
 
   constructor() {
     addIcons({ arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, helpCircle, key, location, lockClosed, logOut, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi });
@@ -163,12 +170,32 @@ export class HomePage {
     this.mostrarModalAi = false;
   }
 
-  onAiPuntos(puntosGanados: number): void {
-    this.puntos += puntosGanados;
-    if (puntosGanados > 50) {
-      this.racha += 1;
-    } else {
-      this.racha = 0;
+  async onAiPuntos(desafio: { id: string; puntos: number; correcta: boolean }): Promise<void> {
+    if (this.aiAwardSaving) return;
+    const uid = this.auth.usuarioActual()?.uid;
+    if (!uid) {
+      this.aiAwardError = 'Tu sesión no está activa. Vuelve a iniciar sesión para guardar tu puntaje.';
+      return;
+    }
+
+    this.aiAwardSaving = true;
+    this.aiAwardError = '';
+    try {
+      await this.decisionService.guardarDesafioAi(uid, desafio);
+      if (!this.aiAwardsInSession.has(desafio.id)) {
+        this.aiAwardsInSession.add(desafio.id);
+        this.puntos += desafio.puntos;
+        this.racha = desafio.correcta ? this.racha + 1 : 0;
+      }
+      this.aiSavedAwardId = desafio.id;
+    } catch (error: unknown) {
+      console.error('No se pudo guardar el puntaje del desafío de IA.', error);
+      this.aiAwardError = error instanceof Error
+        ? error.message
+        : 'No se pudo guardar el puntaje. Intenta nuevamente.';
+    } finally {
+      this.aiAwardSaving = false;
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -260,6 +287,7 @@ export class HomePage {
         : this.mensajeErrorDecision(error);
     } finally {
       this.guardandoDecision = false;
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -272,6 +300,7 @@ export class HomePage {
       this.errorPersistencia = error instanceof Error
         ? error.message
         : 'No se pudo guardar el progreso en este dispositivo.';
+      this.changeDetector.markForCheck();
     }
   }
 

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -46,6 +46,7 @@ const TIMEOUT_CARGA_MS = 8_000;
 export class TeacherPage implements OnDestroy, OnInit {
   private readonly auth = inject(AuthService);
   private readonly institutional = inject(InstitutionalService);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   institucion = '';
   grupos: TeacherGroup[] = [];
@@ -63,6 +64,7 @@ export class TeacherPage implements OnDestroy, OnInit {
   private resultadosDelGrupoCache: { clave: string; datos: GroupResults[] } | null = null;
   private cancelarObservacionResultados?: Unsubscribe;
   private timeoutObservacionResultados?: ReturnType<typeof setTimeout>;
+  private intervaloActualizacion?: ReturnType<typeof setInterval>;
   actualizando = false;
   cargandoEstudiantes = false;
   cerrandoSesion = false;
@@ -72,9 +74,14 @@ export class TeacherPage implements OnDestroy, OnInit {
   }
 
   async ionViewWillEnter(): Promise<void> {
+    this.iniciarActualizacionAutomatica();
     if (this.institucion && !this.cargando && !this.actualizando) {
       await this.actualizarDatos();
     }
+  }
+
+  ionViewWillLeave(): void {
+    this.detenerActualizacionAutomatica();
   }
 
   async cerrarSesion(): Promise<void> {
@@ -115,11 +122,13 @@ export class TeacherPage implements OnDestroy, OnInit {
           this.limpiarTimeoutObservacion();
           this.resultados = resultados;
           this.resultadosDelGrupoCache = null;
+          this.changeDetector.markForCheck();
         },
         (error) => {
           this.limpiarTimeoutObservacion();
           console.error('No se pudo sincronizar en tiempo real el panel docente.', error);
           this.error = 'No se pudieron sincronizar los resultados. Intenta actualizar en unos minutos.';
+          this.changeDetector.markForCheck();
         },
       );
       this.timeoutObservacionResultados = setTimeout(() => {
@@ -128,6 +137,7 @@ export class TeacherPage implements OnDestroy, OnInit {
         this.timeoutObservacionResultados = undefined;
         this.error = 'La sincronización de resultados tardó más de 8 segundos. Puedes actualizar los datos e intentarlo de nuevo.';
       }, TIMEOUT_CARGA_MS);
+      this.iniciarActualizacionAutomatica();
     } catch (error: unknown) {
       console.error('No se pudo cargar el panel institucional docente.', error);
       this.error = error instanceof OperationTimeoutError
@@ -135,10 +145,12 @@ export class TeacherPage implements OnDestroy, OnInit {
         : 'No se pudo cargar la información institucional. Intenta nuevamente en unos minutos.';
     } finally {
       this.cargando = false;
+      this.changeDetector.markForCheck();
     }
   }
 
   ngOnDestroy(): void {
+    this.detenerActualizacionAutomatica();
     this.limpiarTimeoutObservacion();
     this.cancelarObservacionResultados?.();
   }
@@ -159,6 +171,7 @@ export class TeacherPage implements OnDestroy, OnInit {
     this.resultadosDelGrupoCache = null;
     if (!this.grupoSeleccionado && grupos.length) this.grupoSeleccionado = this.claveGrupo(grupos[0]);
     await this.cargarEstudiantesGrupo();
+    this.changeDetector.markForCheck();
   }
 
   async crearCodigo(): Promise<void> {
@@ -180,6 +193,7 @@ export class TeacherPage implements OnDestroy, OnInit {
       this.error = this.mensajeServicio(error, 'No se pudo crear el código. Intenta nuevamente.');
     } finally {
       this.generandoCodigo = false;
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -194,6 +208,8 @@ export class TeacherPage implements OnDestroy, OnInit {
     } catch (error: unknown) {
       console.error('No se pudo revocar el código de vinculación.', error);
       this.error = this.mensajeServicio(error, 'No se pudo revocar el código. Intenta nuevamente.');
+    } finally {
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -205,6 +221,8 @@ export class TeacherPage implements OnDestroy, OnInit {
     } catch (error: unknown) {
       console.error('No se pudo copiar el código de vinculación.', error);
       this.error = 'No se pudo copiar automáticamente. Selecciona el código para copiarlo.';
+    } finally {
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -221,6 +239,34 @@ export class TeacherPage implements OnDestroy, OnInit {
       this.error = this.mensajeServicio(error, 'No se pudieron actualizar los datos. Intenta nuevamente.');
     } finally {
       this.actualizando = false;
+      this.changeDetector.markForCheck();
+    }
+  }
+
+  private iniciarActualizacionAutomatica(): void {
+    if (!this.institucion || this.intervaloActualizacion !== undefined) return;
+    this.intervaloActualizacion = setInterval(() => {
+      void this.actualizarAutomaticamente();
+    }, 30_000);
+  }
+
+  private detenerActualizacionAutomatica(): void {
+    if (this.intervaloActualizacion === undefined) return;
+    clearInterval(this.intervaloActualizacion);
+    this.intervaloActualizacion = undefined;
+  }
+
+  private async actualizarAutomaticamente(): Promise<void> {
+    if (this.cargando || this.actualizando) return;
+    this.actualizando = true;
+    try {
+      await this.cargarDatos();
+    } catch (error: unknown) {
+      console.error('No se pudieron sincronizar automáticamente los datos docentes.', error);
+      this.error = this.mensajeServicio(error, 'No se pudieron actualizar automáticamente los datos.');
+    } finally {
+      this.actualizando = false;
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -233,6 +279,8 @@ export class TeacherPage implements OnDestroy, OnInit {
     } catch (error: unknown) {
       console.error('No se pudo cargar la lista de estudiantes del grupo.', error);
       this.error = this.mensajeServicio(error, 'No se pudo cargar la lista de estudiantes. Intenta actualizar.');
+    } finally {
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -251,6 +299,8 @@ export class TeacherPage implements OnDestroy, OnInit {
     } catch (error: unknown) {
       console.error('No se pudo quitar al estudiante del grupo.', error);
       this.error = this.mensajeServicio(error, 'No se pudo quitar al estudiante. Intenta nuevamente.');
+    } finally {
+      this.changeDetector.markForCheck();
     }
   }
 

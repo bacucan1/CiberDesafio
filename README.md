@@ -23,7 +23,7 @@ La interfaz está inspirada conceptualmente en los juegos narrativos de toma de 
 - Consecuencias inmediatas y retroalimentación educativa.
 - Historias ramificadas con múltiples caminos.
 - Indicadores de seguridad, confianza y reputación.
-- Sistema de XP, rachas, niveles y rangos finales.
+- Sistema de XP, rachas, niveles y rangos finales; los retos de IA se guardan en el progreso del estudiante y se reflejan en el panel docente.
 - Bienvenida y tutorial guiado en la primera partida, con acceso posterior desde «Ayuda».
 - Sonido opcional y animaciones sutiles.
 - Diseño adaptable a celulares, tablets y pantallas grandes, en vertical y horizontal.
@@ -71,12 +71,12 @@ Firebase Hosting
 
 - Pantalla de inicio y autenticación.
 - Recuperación de contraseña y registro de estudiantes y docentes para pruebas.
-- Panel de perfil autenticado con nombre editable, correo, rol, institución, grado y grupo.
+- Panel de perfil autenticado con nombre editable, correo, rol, institución, grado y grupo. El docente puede completar su institución sin aprobación administrativa; queda identificada como autodeclarada/no verificada.
 - Vinculación de estudiantes mediante códigos de grupo con vencimiento, límite de usos y revocación.
 - Flujo de juego narrativo para estudiantes.
 - Tutorial de primera visita y ayuda reabrible; la preferencia se guarda en `localStorage` del navegador.
 - Mazo de escenarios y puntuación calculados localmente en el cliente.
-- Persistencia directa en Firestore de métricas agregadas por grupo y eje, más un resumen de progreso por estudiante vinculado.
+- Persistencia directa en Firestore de métricas agregadas por grupo y eje, resumen de progreso por estudiante vinculado y XP de retos de IA con registro idempotente.
 - Panel docente con nombre, misiones completadas, XP y aciertos de estudiantes de sus grupos; no muestra correos ni el historial de decisiones.
 
 ### Backend y servicios
@@ -139,9 +139,9 @@ Las pruebas unitarias del frontend se ejecutan con `npm test`.
 
 **No uses estas reglas ni datos reales en producción.** Durante las pruebas, cualquier usuario autenticado puede crear un perfil docente de prueba y declarar una institución; utiliza únicamente datos ficticios. Antes de integrar una institución real, elimina esta vía de autorregistro docente, vuelve obligatorio un mecanismo de autorización administrativa y audita las reglas y los perfiles existentes.
 
-La app determina el rol leyendo el perfil de Firestore; el valor guardado en el navegador no concede permisos. Desde `/docente`, el profesor crea un grupo y un código de hasta 30 usos con vencimiento a 14 días. El estudiante canjea ese código en `/perfil`; una transacción valida grupo, institución declarada, grado, vencimiento y cupo, y actualiza a la vez el perfil y los usos del código. No se puede cambiar de institución mediante una edición de perfil.
+La app determina el rol leyendo el perfil de Firestore; el valor guardado en el navegador no concede permisos. Desde `/docente`, el profesor crea un grupo y un código de hasta 30 usos con vencimiento a 14 días. El estudiante canjea ese código en `/perfil`; una transacción valida grupo, institución declarada, grado, vencimiento y cupo, y actualiza a la vez el perfil y los usos del código. El docente puede completar desde su perfil una institución vacía; queda marcada como autodeclarada y no puede cambiarla después.
 
-La ruta `/perfil` muestra el correo (solo lectura), proveedor de inicio de sesión de Firebase, rol y datos académicos. Cada persona puede actualizar su nombre; se normalizan espacios y se permiten hasta 80 caracteres. Los datos académicos se obtienen del código de grupo validado y no se editan libremente.
+La ruta `/perfil` muestra el correo (solo lectura), proveedor de inicio de sesión de Firebase, rol y datos académicos. Cada persona puede actualizar su nombre; se normalizan espacios y se permiten hasta 80 caracteres. Los datos de grupo del estudiante se obtienen del código validado y no se editan libremente.
 
 ### Al integrar instituciones reales
 
@@ -154,7 +154,7 @@ Actualmente no hay instituciones integradas: el alta docente sin código es solo
 
 El proyecto conserva la validación transaccional de códigos administrativos como base para ese futuro flujo, pero el formulario actual de registro no los solicita.
 
-El panel docente muestra el nombre y el resumen de progreso de cada estudiante de sus grupos, sin correo ni historial de decisiones, además de resultados agregados por grupo y eje. Las reglas de Firestore limitan la lectura y la gestión a los docentes asignados al grupo. Al quitar a un estudiante, se desvincula su perfil y se conserva su cuenta, su historial personal y los resultados agregados históricos del grupo. Las métricas se calculan en el dispositivo y no deben tratarse como evidencia de evaluación verificada.
+El panel docente muestra el nombre y el resumen de progreso de cada estudiante de sus grupos, incluyendo XP y resultados de retos de IA, sin correo ni historial de decisiones, además de resultados agregados por grupo y eje. Los resultados agregados se sincronizan en tiempo real; los grupos, estudiantes y códigos se vuelven a consultar cada 30 segundos. Las reglas de Firestore limitan la lectura y la gestión a los docentes asignados al grupo. Al quitar a un estudiante, se desvincula su perfil y se conserva su cuenta, su historial personal y los resultados agregados históricos del grupo. Las métricas se calculan en el dispositivo y no deben tratarse como evidencia de evaluación verificada.
 
 ### API
 

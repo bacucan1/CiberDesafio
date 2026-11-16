@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { doc, getFirestore, runTransaction } from 'firebase/firestore';
+import type { DocumentData, DocumentReference } from 'firebase/firestore';
 import { firebaseApp } from '../firebase.config';
 import { Decision } from '../models/domain.models';
 import { ESCENARIOS } from '../data/escenarios.data';
@@ -9,6 +10,65 @@ const EJES = ['fraude', 'relación de riesgo', 'higiene'] as const;
 @Injectable({ providedIn: 'root' })
 export class DecisionService {
   private readonly firestore = getFirestore(firebaseApp);
+
+  async guardarDesafioAi(
+    uid: string,
+    desafio: { id: string; puntos: number; correcta: boolean },
+  ): Promise<boolean> {
+    if (!/^[a-f0-9-]{32,36}$/.test(desafio.id)
+      || (desafio.correcta ? desafio.puntos !== 120 : desafio.puntos !== 25)) {
+      throw new Error('El resultado del desafío de IA no es válido.');
+    }
+
+    const perfilRef = doc(this.firestore, 'usuarios', uid);
+    const eventoRef = doc(this.firestore, 'usuarios', uid, 'resultados_ai', desafio.id);
+    let guardado = false;
+    await runTransaction(this.firestore, async (transaction) => {
+      const [perfil, evento] = await Promise.all([
+        transaction.get(perfilRef),
+        transaction.get(eventoRef),
+      ]);
+      if (!perfil.exists() || perfil.data()['rol'] !== 'estudiante') {
+        throw new Error('Solo los estudiantes pueden registrar resultados de desafíos.');
+      }
+      if (evento.exists()) return;
+
+      const grupoId = perfil.data()['grupoId'];
+      let miembroRef: DocumentReference<DocumentData> | undefined;
+      let miembroDatos: DocumentData | undefined;
+      if (typeof grupoId === 'string' && grupoId) {
+        miembroRef = doc(this.firestore, 'grupos', grupoId, 'estudiantes', uid);
+        const miembro = await transaction.get(miembroRef);
+        if (!miembro.exists()) {
+          throw new Error('No encontramos tu registro de progreso en el grupo vinculado.');
+        }
+        miembroDatos = miembro.data();
+      }
+
+      const fecha = new Date().toISOString();
+      transaction.set(eventoRef, {
+        puntos: desafio.puntos,
+        correcta: desafio.correcta,
+        fecha,
+      });
+      if (miembroRef && miembroDatos) {
+        const xp = this.contador(miembroDatos['xp'], 'XP');
+        const xpAi = this.contador(miembroDatos['xpAi'] ?? 0, 'XP de IA');
+        const desafiosAi = this.contador(miembroDatos['desafiosAi'] ?? 0, 'desafíos de IA');
+        const aciertosAi = this.contador(miembroDatos['aciertosAi'] ?? 0, 'aciertos de IA');
+        transaction.update(miembroRef, {
+          xp: xp + desafio.puntos,
+          xpAi: xpAi + desafio.puntos,
+          desafiosAi: desafiosAi + 1,
+          aciertosAi: aciertosAi + (desafio.correcta ? 1 : 0),
+          ultimoDesafioAi: desafio.id,
+          fechaActualizacion: fecha,
+        });
+      }
+      guardado = true;
+    });
+    return guardado;
+  }
 
   async guardar(decision: Decision): Promise<void> {
     const escenario = ESCENARIOS.find((item) => item.id === decision.escenarioId);
@@ -95,12 +155,28 @@ export class DecisionService {
       if (typeof nombre !== 'string' || !nombre.trim()) {
         throw new Error('El perfil vinculado no tiene un nombre válido para el grupo.');
       }
-      const resumenAnterior = miembro.exists()
+      const resumenAnterior: {
+        misionesCompletadas: number;
+        xp: number;
+        aciertos: number;
+        decisiones: number;
+        xpAi: number;
+        desafiosAi: number;
+        aciertosAi: number;
+        ultimoDesafioAi?: string;
+        fechaVinculacion: string;
+      } = miembro.exists()
         ? {
           misionesCompletadas: this.contador(miembro.data()['misionesCompletadas'], 'misiones completadas'),
           xp: this.contador(miembro.data()['xp'], 'XP'),
           aciertos: this.contador(miembro.data()['aciertos'], 'aciertos'),
           decisiones: this.contador(miembro.data()['decisiones'], 'decisiones'),
+          xpAi: this.contador(miembro.data()['xpAi'] ?? 0, 'XP de IA'),
+          desafiosAi: this.contador(miembro.data()['desafiosAi'] ?? 0, 'desafíos de IA'),
+          aciertosAi: this.contador(miembro.data()['aciertosAi'] ?? 0, 'aciertos de IA'),
+          ...(typeof miembro.data()['ultimoDesafioAi'] === 'string'
+            ? { ultimoDesafioAi: miembro.data()['ultimoDesafioAi'] as string }
+            : {}),
           fechaVinculacion: miembro.data()['fechaVinculacion'],
         }
         : this.resumenParticipantesLegados(participantesPorEje);
@@ -114,6 +190,12 @@ export class DecisionService {
         nombre: nombre.trim(),
         misionesCompletadas: resumenAnterior.misionesCompletadas + (misionCompletada ? 1 : 0),
         xp: resumenAnterior.xp + puntuacion,
+        xpAi: resumenAnterior.xpAi,
+        desafiosAi: resumenAnterior.desafiosAi,
+        aciertosAi: resumenAnterior.aciertosAi,
+        ...(typeof resumenAnterior.ultimoDesafioAi === 'string'
+          ? { ultimoDesafioAi: resumenAnterior.ultimoDesafioAi }
+          : {}),
         aciertos: resumenAnterior.aciertos + (opcion.correcta ? 1 : 0),
         decisiones: resumenAnterior.decisiones + 1,
         fechaVinculacion: resumenAnterior.fechaVinculacion,
@@ -151,7 +233,17 @@ export class DecisionService {
 
   private resumenParticipantesLegados(
     participantes: { exists(): boolean; data(): Record<string, unknown> | undefined }[],
-  ): { misionesCompletadas: number; xp: number; aciertos: number; decisiones: number; fechaVinculacion: string } {
+  ): {
+    misionesCompletadas: number;
+    xp: number;
+    aciertos: number;
+    decisiones: number;
+    xpAi: number;
+    desafiosAi: number;
+    aciertosAi: number;
+    ultimoDesafioAi?: string;
+    fechaVinculacion: string;
+  } {
     let aciertos = 0;
     let decisiones = 0;
     for (const participante of participantes) {
@@ -169,6 +261,9 @@ export class DecisionService {
       xp: aciertos * 100 + (decisiones - aciertos) * 25,
       aciertos,
       decisiones,
+      xpAi: 0,
+      desafiosAi: 0,
+      aciertosAi: 0,
       fechaVinculacion: new Date().toISOString(),
     };
   }

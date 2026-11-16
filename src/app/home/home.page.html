@@ -171,5 +171,11 @@
 }
 
 @if (mostrarModalAi) {
-  <app-ai-challenge-modal (challengeClosed)="cerrarModoAi()" (pointsAwarded)="onAiPuntos($event)"></app-ai-challenge-modal>
+  <app-ai-challenge-modal
+    [saving]="aiAwardSaving"
+    [saveError]="aiAwardError"
+    [savedAwardId]="aiSavedAwardId"
+    (challengeClosed)="cerrarModoAi()"
+    (pointsAwarded)="onAiPuntos($event)">
+  </app-ai-challenge-modal>
 }

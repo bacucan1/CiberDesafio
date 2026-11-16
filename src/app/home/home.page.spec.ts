@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { DecisionQueueService } from '../core/services/decision-queue.service';
+import { DecisionService } from '../core/services/decision.service';
 import { HomePage } from './home.page';
 
 describe('HomePage', () => {
@@ -14,6 +15,7 @@ describe('HomePage', () => {
     sincronizarPendientes: ReturnType<typeof vi.fn>;
     cantidadPendiente: ReturnType<typeof vi.fn>;
   };
+  let decisionService: { guardarDesafioAi: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     window.localStorage.removeItem(onboardingStorageKey);
@@ -23,6 +25,7 @@ describe('HomePage', () => {
       sincronizarPendientes: vi.fn().mockResolvedValue(0),
       cantidadPendiente: vi.fn().mockReturnValue(0),
     };
+    decisionService = { guardarDesafioAi: vi.fn().mockResolvedValue(true) };
     await TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
@@ -34,6 +37,7 @@ describe('HomePage', () => {
             salir: async () => { sesionesCerradas += 1; },
           },
         },
+        { provide: DecisionService, useValue: decisionService },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(HomePage);
@@ -106,18 +110,35 @@ describe('HomePage', () => {
     expect(sesionesCerradas).toBe(1);
   });
 
-  it('abre y cierra el modo de desafío con IA y acumula puntos', () => {
+  it('guarda el puntaje de IA y lo acumula después de confirmarlo', async () => {
     expect(component.mostrarModalAi).toBe(false);
     component.abrirModoAi();
     expect(component.mostrarModalAi).toBe(true);
 
     const puntosPrevios = component.puntos;
     const rachaPrevia = component.racha;
-    component.onAiPuntos(120);
+    await component.onAiPuntos({ id: '12345678-1234-1234-1234-123456789abc', puntos: 120, correcta: true });
+
+    expect(decisionService.guardarDesafioAi).toHaveBeenCalledWith(
+      'estudiante-1',
+      { id: '12345678-1234-1234-1234-123456789abc', puntos: 120, correcta: true },
+    );
+    expect(component.puntos).toBe(puntosPrevios + 120);
+    expect(component.racha).toBe(rachaPrevia + 1);
+    decisionService.guardarDesafioAi.mockResolvedValue(false);
+    await component.onAiPuntos({ id: '12345678-1234-1234-1234-123456789abc', puntos: 120, correcta: true });
     expect(component.puntos).toBe(puntosPrevios + 120);
     expect(component.racha).toBe(rachaPrevia + 1);
 
     component.cerrarModoAi();
     expect(component.mostrarModalAi).toBe(false);
+  });
+
+  it('no suma puntos si el guardado del desafío falla', async () => {
+    decisionService.guardarDesafioAi.mockRejectedValue(new Error('Sin conexión'));
+    await component.onAiPuntos({ id: '12345678-1234-1234-1234-123456789abc', puntos: 120, correcta: true });
+
+    expect(component.puntos).toBe(0);
+    expect(component.aiAwardError).toBe('Sin conexión');
   });
 });

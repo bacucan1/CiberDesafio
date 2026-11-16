@@ -45,7 +45,7 @@
           </ion-list>
           <p class="profile-hint">Tu correo se usa para iniciar sesión y no se puede cambiar desde esta pantalla.</p>
 
-          <div class="section-title"><h2>Información académica</h2><p>Estos datos no se pueden editar desde aquí; en modo de prueba, la institución no está verificada.</p></div>
+          <div class="section-title"><h2>Información académica</h2><p>La información de tu cuenta se muestra aquí y puedes completar los datos pendientes.</p></div>
           @if (perfil.modoPrueba) {
             <p class="profile-hint">Perfil de prueba: el nombre de la institución fue escrito por el docente y no ha sido verificado.</p>
           }
@@ -72,7 +72,7 @@
               <div class="enrollment-form">
                 <ion-item>
                   <ion-label position="stacked">Código de invitación</ion-label>
-                  <ion-input name="codigoGrupo" [(ngModel)]="codigoGrupo" aria-label="Código de invitación" autocomplete="off" autocapitalize="characters" maxlength="24" required></ion-input>
+                  <ion-input name="codigoGrupo" [(ngModel)]="codigoGrupo" aria-label="Código de invitación" placeholder="Ej. A1B2C3D4E5F6" autocomplete="off" autocapitalize="characters" maxlength="12" required></ion-input>
                 </ion-item>
                 <ion-button type="button" [disabled]="vinculando || !codigoGrupo.trim()" (click)="vincularGrupo()">
                   {{ vinculando ? 'Verificando…' : 'Vincularme al grupo' }}
@@ -85,10 +85,10 @@
           @if (datosAcademicosIncompletos) {
             <section class="enrollment-section" aria-labelledby="missing-data-heading">
               <div class="section-title">
-                <h2 id="missing-data-heading">Solicitar revisión de datos</h2>
+                <h2 id="missing-data-heading">{{ perfil.rol === 'docente' ? 'Completar institución' : 'Solicitar revisión de datos' }}</h2>
                 <p>
                   @if (perfil.rol === 'docente') {
-                    Falta la institución de tu perfil. Envíala para revisión; no se habilitarán permisos docentes hasta validarla.
+                    Escribe el nombre de tu institución para habilitar el panel docente y crear grupos. No necesitas permisos adicionales.
                   } @else {
                     Si no tienes un código de invitación o falta información académica, envíala para que el equipo la revise.
                   }
@@ -96,7 +96,7 @@
               </div>
               <ion-item>
                 <ion-label position="stacked">Institución</ion-label>
-                <ion-input [(ngModel)]="institucionSolicitada" name="institucionSolicitada" aria-label="Institución solicitada" maxlength="100"></ion-input>
+                <ion-input [(ngModel)]="institucionSolicitada" name="institucionSolicitada" aria-label="Institución solicitada" maxlength="100" [disabled]="solicitandoDatos"></ion-input>
               </ion-item>
               @if (perfil.rol === 'estudiante') {
                 <ion-item>
@@ -111,13 +111,17 @@
                     <ion-select-option [value]="11">11.º</ion-select-option>
                   </ion-select>
                 </ion-item>
+                @if (solicitudPendiente) {
+                  <p class="profile-hint" role="status">Solicitud enviada y pendiente de revisión.</p>
+                }
+                <ion-button type="button" [disabled]="solicitandoDatos || solicitudPendiente || !institucionSolicitada.trim() || !grupoSolicitado.trim()" (click)="solicitarActualizacionPerfil()">
+                  {{ solicitandoDatos ? 'Enviando…' : solicitudPendiente ? 'Solicitud enviada' : 'Enviar para revisión' }}
+                </ion-button>
+              } @else {
+                <ion-button type="button" [disabled]="solicitandoDatos || institucionSolicitada.trim().length < 3" (click)="guardarInstitucionDocente()">
+                  {{ solicitandoDatos ? 'Guardando…' : 'Guardar institución y continuar' }}
+                </ion-button>
               }
-              @if (solicitudPendiente) {
-                <p class="profile-hint" role="status">Solicitud enviada y pendiente de revisión.</p>
-              }
-              <ion-button type="button" [disabled]="solicitandoDatos || solicitudPendiente || !institucionSolicitada.trim() || (perfil.rol === 'estudiante' && !grupoSolicitado.trim())" (click)="solicitarActualizacionPerfil()">
-                {{ solicitandoDatos ? 'Enviando…' : solicitudPendiente ? 'Solicitud enviada' : 'Enviar para revisión' }}
-              </ion-button>
             </section>
           }
 

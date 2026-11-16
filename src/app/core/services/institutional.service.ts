@@ -57,6 +57,8 @@ export interface GroupStudentProgress {
   xp: number;
   aciertos: number;
   decisiones: number;
+  desafiosAi: number;
+  aciertosAi: number;
   fechaVinculacion: string;
   fechaActualizacion: string;
 }
@@ -98,6 +100,9 @@ export class InstitutionalService {
           || String(existente['grupo']).toLowerCase() !== nombreGrupo.toLowerCase()
           || (typeof existente['grado'] === 'number' ? existente['grado'] : undefined) !== grado) {
           throw new Error('Ya existe un grupo con una identidad incompatible.');
+        }
+        if (!Array.isArray(existente['profesores']) || !existente['profesores'].includes(uid)) {
+          throw new Error('El grupo ya existe y solo sus docentes asignados pueden crear códigos.');
         }
       }
 
@@ -165,7 +170,7 @@ export class InstitutionalService {
 
   async vincularConCodigo(codigo: string): Promise<TeacherGroup & { institucion: string }> {
     const uid = this.usuarioId();
-    const codigoNormalizado = codigo.trim().toUpperCase();
+    const codigoNormalizado = codigo.replace(/\s/g, '').toUpperCase();
     if (!/^[A-F0-9]{12}$/.test(codigoNormalizado)) {
       throw new Error('Escribe un código de invitación válido.');
     }
@@ -265,9 +270,16 @@ export class InstitutionalService {
     return snapshot.docs.map((item) => {
       const data = item.data();
       const numeros = ['misionesCompletadas', 'xp', 'aciertos', 'decisiones'] as const;
+      const desafiosAi = data['desafiosAi'] ?? 0;
+      const aciertosAi = data['aciertosAi'] ?? 0;
       if (data['uid'] !== item.id
         || typeof data['nombre'] !== 'string'
         || !numeros.every((campo) => Number.isSafeInteger(data[campo]) && Number(data[campo]) >= 0)
+        || !Number.isSafeInteger(desafiosAi)
+        || !Number.isSafeInteger(aciertosAi)
+        || desafiosAi < 0
+        || aciertosAi < 0
+        || aciertosAi > desafiosAi
         || typeof data['fechaVinculacion'] !== 'string'
         || typeof data['fechaActualizacion'] !== 'string') {
         throw new Error('El registro de un estudiante tiene un formato no válido.');
@@ -279,10 +291,34 @@ export class InstitutionalService {
         xp: data['xp'] as number,
         aciertos: data['aciertos'] as number,
         decisiones: data['decisiones'] as number,
+        desafiosAi,
+        aciertosAi,
         fechaVinculacion: data['fechaVinculacion'],
         fechaActualizacion: data['fechaActualizacion'],
       };
     }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }
+
+  async actualizarInstitucionDocente(institucion: string): Promise<string> {
+    const uid = this.usuarioId();
+    const institucionNormalizada = institucion.trim().replace(/\s+/g, ' ');
+    if (institucionNormalizada.length < 3 || institucionNormalizada.length > 100) {
+      throw new Error('La institución debe tener entre 3 y 100 caracteres.');
+    }
+
+    const profileRef = doc(this.firestore, 'usuarios', uid);
+    const perfil = await getDoc(profileRef);
+    if (!perfil.exists() || perfil.data()['rol'] !== 'docente' || perfil.data()['institucion']) {
+      throw new Error('Solo un perfil docente sin institución asignada puede completar este dato.');
+    }
+
+    await updateDoc(profileRef, {
+      institucion: institucionNormalizada,
+      modoPrueba: true,
+      fechaActualizacion: new Date().toISOString(),
+    });
+    this.authService.invalidarCache();
+    return institucionNormalizada;
   }
 
   async quitarEstudiante(grupoId: string, uid: string): Promise<void> {

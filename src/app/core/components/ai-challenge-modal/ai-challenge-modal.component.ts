@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonIcon } from '@ionic/angular';
@@ -125,6 +125,14 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
                     <span>{{ 'aiChallenge.scoreEarned' | translate }}:</span>
                     <strong>+{{ selectedOption.isCorrect ? 120 : 25 }} XP</strong>
                   </div>
+                  @if (saving) {
+                    <p role="status">Guardando tu puntaje…</p>
+                  } @else if (saveError) {
+                    <p role="alert">{{ saveError }}</p>
+                    <button type="button" class="action-btn-secondary" (click)="retrySaving()">Reintentar guardado</button>
+                  } @else if (savedAwardId === selectedAwardId) {
+                    <p role="status">Puntaje guardado en tu progreso.</p>
+                  }
                 </div>
 
                 <div class="feedback-actions">
@@ -498,13 +506,18 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
 })
 export class AiChallengeModalComponent implements OnInit {
   private readonly aiService = inject(AiExerciseService);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   @Output() challengeClosed = new EventEmitter<void>();
-  @Output() pointsAwarded = new EventEmitter<number>();
+  @Output() pointsAwarded = new EventEmitter<{ id: string; puntos: number; correcta: boolean }>();
+  @Input() saving = false;
+  @Input() saveError = '';
+  @Input() savedAwardId = '';
 
   difficulty: DifficultyLevel = 'medium';
   exercise: AiExercise | null = null;
   selectedOption: AiExerciseOption | null = null;
+  selectedAwardId = '';
   loading = false;
 
   constructor() {
@@ -521,13 +534,28 @@ export class AiChallengeModalComponent implements OnInit {
     setTimeout(() => {
       this.exercise = this.aiService.generateRandomExercise(this.difficulty);
       this.loading = false;
+      this.changeDetector.markForCheck();
     }, 150);
   }
 
   selectOption(option: AiExerciseOption): void {
     this.selectedOption = option;
-    const points = option.isCorrect ? 120 : 25;
-    this.pointsAwarded.emit(points);
+    this.selectedAwardId = crypto.randomUUID();
+    this.emitAward();
+  }
+
+  retrySaving(): void {
+    if (!this.selectedOption || this.saving) return;
+    this.emitAward();
+  }
+
+  private emitAward(): void {
+    if (!this.selectedOption) return;
+    this.pointsAwarded.emit({
+      id: this.selectedAwardId,
+      puntos: this.selectedOption.isCorrect ? 120 : 25,
+      correcta: this.selectedOption.isCorrect,
+    });
   }
 
   close(): void {

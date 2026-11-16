@@ -38,6 +38,9 @@ beforeEach(async () => {
       setDoc(doc(db, 'usuarios/docA'), perfilDocente('docA')),
       setDoc(doc(db, 'usuarios/docB'), perfilDocente('docB', 'Colegio Norte', { codigoInvitacion: 'colegio-norte-TEACHER42' })),
       setDoc(doc(db, 'usuarios/docC'), perfilDocente('docC')),
+      setDoc(doc(db, 'usuarios/doc-sin-institucion'), {
+        uid: 'doc-sin-institucion', nombre: 'Docente', rol: 'docente', institucion: '', modoPrueba: true,
+      }),
       setDoc(doc(db, `codigos_invitacion/${CODIGO_DOCENTE}`), { activo: true, institucion: INSTITUCION, usos: 0, maxUsos: 1 }),
       setDoc(doc(db, `codigos_invitacion/${CODIGO_DOCENTE_PRUEBA}`), {
         activo: true, institucion: INSTITUCION, usos: 0, maxUsos: 1,
@@ -140,6 +143,20 @@ describe('registro y protección de perfiles', () => {
     await assertFails(updateDoc(doc(como('est-vinculado'), 'usuarios/est-vinculado'), { grupo: 'Otro grupo' }));
   });
 
+  it('permite a un docente completar la institución sin habilitar cambios posteriores', async () => {
+    const perfilRef = doc(como('doc-sin-institucion'), 'usuarios/doc-sin-institucion');
+    await assertSucceeds(updateDoc(perfilRef, {
+      institucion: 'Institución nueva',
+      modoPrueba: true,
+      fechaActualizacion: new Date().toISOString(),
+    }));
+    await assertFails(updateDoc(doc(como('docA'), 'usuarios/docA'), {
+      institucion: 'Institución no autorizada',
+      modoPrueba: true,
+      fechaActualizacion: new Date().toISOString(),
+    }));
+  });
+
   it('cada usuario solo puede consultar su propio perfil', async () => {
     await assertSucceeds(getDoc(doc(como('est1'), 'usuarios/est1')));
     await assertFails(getDoc(doc(como('est1'), 'usuarios/est2')));
@@ -168,6 +185,48 @@ describe('vinculación de estudiantes con código de grupo', () => {
           venceEn: Timestamp.fromDate(new Date(Date.now() + 60_000)),
         }),
       ]);
+    });
+
+    describe('puntaje de desafíos con IA', () => {
+      it('guarda el reto y actualiza el XP del grupo en una sola operación', async () => {
+        const db = como('est-vinculado');
+        const miembroRef = doc(db, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`);
+        const desafioId = '12345678-1234-1234-1234-123456789abc';
+        const desafioRef = doc(db, `usuarios/est-vinculado/resultados_ai/${desafioId}`);
+
+        await assertSucceeds(runTransaction(db, async (transaction) => {
+          await Promise.all([transaction.get(miembroRef), transaction.get(desafioRef)]);
+          transaction.update(miembroRef, {
+            xp: 120,
+            xpAi: 120,
+            desafiosAi: 1,
+            aciertosAi: 1,
+            ultimoDesafioAi: desafioId,
+            fechaActualizacion: new Date().toISOString(),
+          });
+          transaction.set(desafioRef, { puntos: 120, correcta: true, fecha: new Date().toISOString() });
+        }));
+      });
+
+      it('rechaza recompensas que no corresponden a la respuesta', async () => {
+        const db = como('est-vinculado');
+        const miembroRef = doc(db, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`);
+        const desafioId = 'abcdefab-cdef-abcd-efab-cdefabcdefab';
+        const desafioRef = doc(db, `usuarios/est-vinculado/resultados_ai/${desafioId}`);
+
+        await assertFails(runTransaction(db, async (transaction) => {
+          await Promise.all([transaction.get(miembroRef), transaction.get(desafioRef)]);
+          transaction.update(miembroRef, {
+            xp: 120,
+            xpAi: 120,
+            desafiosAi: 1,
+            aciertosAi: 0,
+            ultimoDesafioAi: desafioId,
+            fechaActualizacion: new Date().toISOString(),
+          });
+          transaction.set(desafioRef, { puntos: 120, correcta: false, fecha: new Date().toISOString() });
+        }));
+      });
     });
 
     await assertFails(getDoc(doc(como('est1'), 'codigos_vinculacion/ABCDEF123456')));
@@ -252,6 +311,20 @@ describe('vinculación de estudiantes con código de grupo', () => {
         codigo: nuevoCodigo, grupoId: nuevoGrupoId, grupo: '1001-B', grado: 10, institucion: INSTITUCION,
         creadoPor: 'docA', estado: 'activo', usos: 0, maxUsos: 30,
         venceEn: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), fechaCreacion: Timestamp.now(),
+      });
+    }));
+  });
+
+  it('no permite a otro docente añadirse a un grupo existente del mismo centro', async () => {
+    const db = como('docC');
+    const grupoRef = doc(db, `grupos/${GRUPO_ID}`);
+
+    await assertFails(runTransaction(db, async (transaction) => {
+      const grupo = await transaction.get(grupoRef);
+      transaction.set(grupoRef, {
+        ...grupo.data(),
+        profesores: ['docA', 'docC'],
+        fechaActualizacion: Timestamp.now(),
       });
     }));
   });

@@ -20,6 +20,14 @@
     @if (error) { <ion-text color="danger"><p class="teacher-message" role="alert">{{ error }}</p></ion-text> }
     @if (mensaje) { <ion-text color="success"><p class="teacher-message success" role="status">{{ mensaje }}</p></ion-text> }
 
+    @if (!cargando && !institucion) {
+      <section class="empty-state" aria-labelledby="institution-required-title">
+        <h2 id="institution-required-title">Completa la información de tu institución</h2>
+        <p>Como docente, puedes ingresar el nombre desde tu perfil. No necesitas una aprobación administrativa para continuar.</p>
+        <ion-button routerLink="/perfil">Completar institución</ion-button>
+      </section>
+    }
+
     @if (cargando) {
       <p role="status">Cargando datos de tu institución…</p>
     } @else if (!error || institucion) {
@@ -144,6 +152,7 @@
                 <div class="student-metric"><span>Misiones</span><strong>{{ estudiante.misionesCompletadas }}</strong></div>
                 <div class="student-metric"><span>XP</span><strong>{{ estudiante.xp }}</strong></div>
                 <div class="student-metric"><span>Aciertos</span><strong>{{ estudiante.aciertos }} / {{ estudiante.decisiones }}</strong></div>
+                <div class="student-metric"><span>Retos IA</span><strong>{{ estudiante.aciertosAi }} / {{ estudiante.desafiosAi }}</strong></div>
                 <ion-button fill="outline" color="danger" [disabled]="actualizando" (click)="quitarEstudiante(estudiante)">
                   Quitar del grupo
                 </ion-button>

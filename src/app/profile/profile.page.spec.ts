@@ -7,6 +7,7 @@ import { ProfilePage } from './profile.page';
 describe('ProfilePage', () => {
   let component: ProfilePage;
   let fixture: ComponentFixture<ProfilePage>;
+  let institutional: { actualizarInstitucionDocente: ReturnType<typeof vi.fn> };
   let auth: {
     esperarSesion: ReturnType<typeof vi.fn>;
     obtenerPerfil: ReturnType<typeof vi.fn>;
@@ -32,12 +33,15 @@ describe('ProfilePage', () => {
       }),
       invalidarCache: vi.fn(),
     };
+    institutional = {
+      actualizarInstitucionDocente: vi.fn().mockResolvedValue('Institución nueva'),
+    };
 
     await TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         { provide: AuthService, useValue: auth },
-        { provide: InstitutionalService, useValue: {} },
+        { provide: InstitutionalService, useValue: institutional },
       ],
     }).compileComponents();
 
@@ -73,5 +77,21 @@ describe('ProfilePage', () => {
 
     expect(auth.invalidarCache).toHaveBeenCalledOnce();
     expect(auth.obtenerPerfil).toHaveBeenCalledTimes(2);
+  });
+
+  it('guarda directamente la institución de un docente sin solicitar aprobación', async () => {
+    component.perfil = {
+      uid: 'docente-1',
+      nombre: 'Docente',
+      rol: 'docente',
+      institucion: '',
+    };
+    component.institucionSolicitada = 'Institución nueva';
+
+    await component.guardarInstitucionDocente();
+
+    expect(institutional.actualizarInstitucionDocente).toHaveBeenCalledWith('Institución nueva');
+    expect(component.perfil.institucion).toBe('Institución nueva');
+    expect(component.mensaje).toContain('Ya puedes usar el panel docente');
   });
 });

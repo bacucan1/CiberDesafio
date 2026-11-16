@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonList, IonSelect, IonSelectOption, IonText, IonTitle, IonToolbar } from '@ionic/angular';
@@ -39,6 +39,7 @@ export class ProfilePage {
   private readonly auth = inject(AuthService);
   private readonly institutional = inject(InstitutionalService);
   private readonly router = inject(Router);
+  private readonly changeDetector = inject(ChangeDetectorRef);
   private vistaInicializada = false;
 
   perfil: Usuario | null = null;
@@ -124,6 +125,7 @@ export class ProfilePage {
         : 'No se pudo cargar tu perfil. Revisa tu conexión e intenta nuevamente.';
     } finally {
       this.cargando = false;
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -164,6 +166,7 @@ export class ProfilePage {
       this.error = 'No se pudieron guardar los cambios. Verifica tu conexión e intenta de nuevo.';
     } finally {
       this.guardando = false;
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -189,6 +192,7 @@ export class ProfilePage {
       this.error = error instanceof Error ? error.message : 'No se pudo crear tu perfil. Intenta nuevamente.';
     } finally {
       this.creandoPerfil = false;
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -211,6 +215,26 @@ export class ProfilePage {
       this.error = this.mensajeServicio(error, 'No se pudo enviar la solicitud. Revisa los datos e intenta nuevamente.');
     } finally {
       this.solicitandoDatos = false;
+      this.changeDetector.markForCheck();
+    }
+  }
+
+  async guardarInstitucionDocente(): Promise<void> {
+    if (!this.perfil || this.perfil.rol !== 'docente' || this.solicitandoDatos) return;
+    this.solicitandoDatos = true;
+    this.error = '';
+    this.mensaje = '';
+    try {
+      const institucion = await this.institutional.actualizarInstitucionDocente(this.institucionSolicitada);
+      this.perfil = { ...this.perfil, institucion, modoPrueba: true };
+      this.institucionSolicitada = institucion;
+      this.mensaje = 'La institución se guardó. Ya puedes usar el panel docente y crear grupos.';
+    } catch (error: unknown) {
+      console.error('No se pudo guardar la institución del docente.', error);
+      this.error = this.mensajeServicio(error, 'No se pudo guardar la institución. Revisa el nombre e intenta nuevamente.');
+    } finally {
+      this.solicitandoDatos = false;
+      this.changeDetector.markForCheck();
     }
   }
 
@@ -235,6 +259,7 @@ export class ProfilePage {
       this.error = this.mensajeServicio(error, 'No se pudo validar el código. Revisa que esté vigente y vuelve a intentarlo.');
     } finally {
       this.vinculando = false;
+      this.changeDetector.markForCheck();
     }
   }
 

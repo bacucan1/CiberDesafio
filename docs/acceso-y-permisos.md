@@ -2,8 +2,8 @@
 
 ## Modelo
 - El **rol** (`estudiante` | `docente`) vive en `usuarios/{uid}` de Firestore. El navegador nunca decide el rol: ya no se guarda en `localStorage`.
-- Un usuario nuevo siempre empieza como **estudiante**. Para ser **docente** necesita un **código de invitación** vigente.
-- Las reglas impiden que un usuario cambie su `rol`, su `uid` o (si es docente) su `institucion`.
+- El rol vive en el perfil y no se puede cambiar después de crear la cuenta. Un docente sin institución puede completar ese dato desde su perfil; queda marcado como `modoPrueba: true` y no se presenta como institución verificada.
+- Un docente solo puede completar una institución que todavía esté vacía. No puede cambiarla después de crear grupos ni modificar su `rol` o `uid`.
 - La API lee el rol desde Firestore con el `uid` del token verificado; nada que envíe el cliente lo cambia.
 - Los guards de Angular solo mejoran la experiencia; la seguridad real la imponen `firestore.rules` y la API.
 - El roster vive en `grupos/{grupoId}/estudiantes/{uid}`. El estudiante puede escribir su propio resumen de progreso y los docentes asignados al grupo pueden leerlo; no se guarda ni se muestra el correo.
@@ -31,5 +31,6 @@
 | Reglas de Firestore (emulador) | `cd tests/rules && npm install && npm test` (requiere Java) | 27 pruebas (no ejecutadas aún) |
 
 ## Límites conocidos
+- La institución autodeclarada permite operar el panel sin aprobación administrativa, pero no comprueba que la persona represente a esa institución. Antes de usar datos institucionales reales, hace falta incorporar un proceso de verificación.
 - **Alta de estudiantes:** el vínculo al grupo se hace mediante el código de invitación. La búsqueda por correo y la importación de listas requieren un servicio administrativo seguro para localizar cuentas; no se deben resolver permitiendo a docentes consultar perfiles globales.
-- **Puntuación en el cliente:** la lógica de juego se ejecuta en el navegador; las métricas son educativas y no deben usarse como calificación verificada.
+- **Puntuación en el cliente:** los retos de IA quedan registrados de forma idempotente y se reflejan en el XP del grupo. La lógica del juego sigue ejecutándose en el navegador; estas métricas son educativas y no deben usarse como calificación verificada.
