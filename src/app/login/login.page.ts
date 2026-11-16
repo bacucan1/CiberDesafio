@@ -157,6 +157,8 @@ export class LoginPage {
         return 'Este dominio no está autorizado en Firebase Authentication.';
       case 'auth/operation-not-allowed':
         return 'Este método de inicio de sesión no está habilitado. Contacta al equipo administrador.';
+      case 'permission-denied':
+        return 'Firebase rechazó crear tu perfil. Revisa que las reglas de Firestore publicadas permitan el registro docente de prueba y que estén desplegadas en el mismo proyecto Firebase de esta app.';
       default:
         console.error('Fallo en el flujo de autenticación.', error);
         return 'No pudimos completar la solicitud. Revisa los datos y vuelve a intentarlo.';
