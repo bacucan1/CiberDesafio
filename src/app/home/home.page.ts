@@ -2,25 +2,90 @@ import { Component, ElementRef, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, key, location, lockClosed, logOut, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi } from 'ionicons/icons';
+import { arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, helpCircle, key, location, lockClosed, logOut, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi } from 'ionicons/icons';
 import { Decision, Escenario, NodoDecision, OpcionDecision } from '../core/models/domain.models';
 import { AuthService } from '../core/services/auth.service';
 import { SimulationService } from '../core/services/simulation.service';
 import { DecisionService } from '../core/services/decision.service';
 import { ScenarioService } from '../core/services/scenario.service';
 
+interface TutorialStep {
+  label: string;
+  title: string;
+  description: string;
+  target?: string;
+}
+
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
-  styleUrls: ['home.page.scss', 'home.futuristic.scss', 'home.gestures.scss'],
+  styleUrls: ['home.page.scss', 'home.futuristic.scss', 'home.gestures.scss', 'home.responsive.scss'],
   imports: [RouterLink, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar],
 })
 export class HomePage {
+  private readonly onboardingStorageKey = 'ciberdesafio.onboarding-completado';
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly auth = inject(AuthService);
   private readonly simulation = inject(SimulationService);
   private readonly decisionStore = inject(DecisionService);
   private readonly scenarioCatalog = inject(ScenarioService);
+  readonly pasosTutorial: TutorialStep[] = [
+    {
+      label: 'BIENVENIDA',
+      title: '¡Bienvenido a CiberDesafío!',
+      description: 'Enfrenta situaciones digitales, elige cómo actuar y descubre qué tan seguras son tus decisiones. Ganas puntos al decidir con cuidado; no hay eliminación: cada error te enseña algo nuevo.',
+    },
+    {
+      label: 'CONTROLES',
+      title: 'Tus controles',
+      description: 'Activa o silencia el sonido, consulta tu perfil o cierra la sesión. Usa “Cómo jugar” cuando quieras repetir este recorrido.',
+      target: 'controls',
+    },
+    {
+      label: 'TU PROGRESO',
+      title: 'Puntos, racha y nivel',
+      description: 'Aquí ves los XP que ganas, tus decisiones seguras seguidas y tu nivel. Cada respuesta suma puntos y te ayuda a avanzar.',
+      target: 'stats',
+    },
+    {
+      label: 'LA HISTORIA',
+      title: 'Cuida el equilibrio',
+      description: 'Seguridad, confianza y reputación cambian con tus decisiones. Observa sus barras para entender cómo afectan a la comunidad.',
+      target: 'balance',
+    },
+    {
+      label: 'RUTAS',
+      title: 'Elige una historia',
+      description: 'Selecciona un tema del mazo para jugar otra misión. Cada historia presenta situaciones distintas y varios caminos.',
+      target: 'missions',
+    },
+    {
+      label: 'NAVEGACIÓN',
+      title: 'Explora otras misiones',
+      description: 'Las flechas a los lados de la carta cambian a la ruta anterior o siguiente. También puedes escogerla directamente en el mazo.',
+      target: 'arrows',
+    },
+    {
+      label: 'SITUACIÓN',
+      title: 'Lee y sigue tu avance',
+      description: 'La carta cuenta lo que ocurre; el indicador muestra cuántas situaciones has resuelto. Puedes arrastrar la carta hacia un lado o elegir una respuesta.',
+      target: 'scenario',
+    },
+    {
+      label: 'DECIDE',
+      title: 'Elige cómo actuar',
+      description: 'Pulsa una de las opciones para tomar una decisión. La primera va a la izquierda y la segunda a la derecha; después verás sus consecuencias y una explicación.',
+      target: 'options',
+    },
+    {
+      label: 'APRENDE',
+      title: 'Revisa y continúa',
+      description: 'Después de cada decisión, lee la explicación y pulsa “Continuar” para seguir. Al terminar la misión conocerás tu resultado y podrás repetirla.',
+      target: 'scenario',
+    },
+  ];
+  mostrarTutorial = false;
+  indicePasoTutorial = 0;
   readonly ejercicios = this.scenarioCatalog.obtenerTodos();
   escenario: Escenario = this.ejercicios[0];
   nodoActual: NodoDecision = this.escenario.nodos[0];
@@ -51,7 +116,55 @@ export class HomePage {
   errorSesion = '';
 
   constructor() {
-    addIcons({ arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, key, location, lockClosed, logOut, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi });
+    addIcons({ arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, helpCircle, key, location, lockClosed, logOut, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi });
+    this.mostrarTutorial = !this.tutorialCompletado();
+  }
+
+  get pasoTutorial(): TutorialStep {
+    return this.pasosTutorial[this.indicePasoTutorial];
+  }
+
+  abrirAyuda(): void {
+    this.indicePasoTutorial = 0;
+    this.mostrarTutorial = true;
+  }
+
+  siguientePasoTutorial(): void {
+    if (this.indicePasoTutorial < this.pasosTutorial.length - 1) {
+      this.indicePasoTutorial += 1;
+      return;
+    }
+
+    this.terminarTutorial();
+  }
+
+  anteriorPasoTutorial(): void {
+    if (this.indicePasoTutorial > 0) this.indicePasoTutorial -= 1;
+  }
+
+  saltarTutorial(): void {
+    this.terminarTutorial();
+  }
+
+  private terminarTutorial(): void {
+    this.mostrarTutorial = false;
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(this.onboardingStorageKey, 'true');
+      }
+    } catch (error: unknown) {
+      console.error('No se pudo guardar la preferencia del tutorial.', error);
+    }
+  }
+
+  private tutorialCompletado(): boolean {
+    try {
+      return typeof window !== 'undefined'
+        && window.localStorage.getItem(this.onboardingStorageKey) === 'true';
+    } catch (error: unknown) {
+      console.error('No se pudo leer la preferencia del tutorial.', error);
+      return false;
+    }
   }
 
   ionViewWillLeave(): void {

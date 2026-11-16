@@ -24,8 +24,9 @@ La interfaz está inspirada conceptualmente en los juegos narrativos de toma de 
 - Historias ramificadas con múltiples caminos.
 - Indicadores de seguridad, confianza y reputación.
 - Sistema de XP, rachas, niveles y rangos finales.
+- Bienvenida y tutorial guiado en la primera partida, con acceso posterior desde «Ayuda».
 - Sonido opcional y animaciones sutiles.
-- Diseño responsive para computador, tablet y celular.
+- Diseño adaptable a celulares, tablets y pantallas grandes, en vertical y horizontal.
 
 ## Campaña de aprendizaje
 
@@ -73,6 +74,7 @@ Firebase Hosting
 - Panel de perfil autenticado con nombre editable, correo, rol, institución, grado y grupo.
 - Vinculación de estudiantes mediante códigos de grupo con vencimiento, límite de usos y revocación.
 - Flujo de juego narrativo para estudiantes.
+- Tutorial de primera visita y ayuda reabrible; la preferencia se guarda en `localStorage` del navegador.
 - Mazo de escenarios y puntuación calculados localmente en el cliente.
 - Persistencia directa en Firestore de métricas agregadas por grupo y eje; no se guarda historial individual de decisiones.
 - Panel docente con resultados agregados y sin historial individual de estudiantes.
@@ -115,6 +117,17 @@ npm start
 ```
 
 La aplicación estará disponible en `http://localhost:4200` o en el puerto indicado por Ionic.
+
+Para iniciar el servidor de desarrollo también puedes usar `npm run start:dev`. Si tienes Ionic CLI instalado, `ionic serve` abre la misma aplicación. Inicia sesión con una cuenta de estudiante de prueba para entrar al juego.
+
+### Probar el tutorial y el diseño responsive
+
+1. En la primera visita a `/home` aparece la bienvenida y luego la guía. Usa «Siguiente», «Anterior» y «Saltar tutorial» para recorrerla.
+2. El botón «Ayuda» de la barra superior vuelve a abrir la guía. Para probar de nuevo la primera visita, borra `ciberdesafio.onboarding-completado` en las herramientas de desarrollador, en **Application/Aplicación → Local Storage**.
+3. Pulsa **F12** y activa la barra de dispositivos (**Toggle device toolbar**, `Ctrl+Shift+M` en Chrome/Edge). Prueba varios teléfonos, tablets y tamaños de escritorio; gira el dispositivo para revisar orientación vertical y horizontal.
+4. Comprueba que el selector de historias se pueda desplazar en móvil, que las opciones se lean completas y que no aparezca desplazamiento horizontal en la página.
+
+Las pruebas unitarias del frontend se ejecutan con `npm test`.
 
 ### Firebase
 
