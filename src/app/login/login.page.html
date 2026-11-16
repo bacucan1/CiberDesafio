@@ -24,20 +24,23 @@
     </section>
 
     <section class="form-panel">
+      <div class="login-lang-wrap">
+        <app-language-selector></app-language-selector>
+      </div>
       <div class="mobile-brand">
         <span class="brand-mark"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon></span>
         <span>CYBER<span>DESAFÍO</span></span>
       </div>
       <div class="auth-card">
         <div class="form-heading">
-          <p class="eyebrow">{{ registrando ? 'ÚNETE A LA EXPERIENCIA' : 'QUÉ BUENO TENERTE DE VUELTA' }}</p>
-          <h2>{{ registrando ? 'Crea tu cuenta' : 'Inicia sesión' }}</h2>
-          <p>{{ registrando ? 'Un espacio seguro para aprender y fortalecer tu criterio digital.' : 'Continúa tu camino para navegar con más criterio.' }}</p>
+          <p class="eyebrow">{{ registrando ? ('login.createAccount' | translate) : ('login.welcomeBack' | translate) }}</p>
+          <h2>{{ registrando ? ('login.createAccount' | translate) : ('login.submitLogin' | translate) }}</h2>
+          <p>{{ registrando ? ('login.approvalNoteStudent' | translate) : ('login.quoteDesc' | translate) }}</p>
         </div>
 
         <div class="mode-switch" role="group" aria-label="Tipo de acceso">
-          <button type="button" [class.selected]="!registrando" [attr.aria-pressed]="!registrando" (click)="registrando = false; solicitandoDocencia = false; error = ''; mensaje = ''">Ingresar</button>
-          <button type="button" [class.selected]="registrando" [attr.aria-pressed]="registrando" (click)="registrando = true; error = ''; mensaje = ''">Crear cuenta</button>
+          <button type="button" [class.selected]="!registrando" [attr.aria-pressed]="!registrando" (click)="registrando = false; solicitandoDocencia = false; error = ''; mensaje = ''">{{ 'login.tabLogin' | translate }}</button>
+          <button type="button" [class.selected]="registrando" [attr.aria-pressed]="registrando" (click)="registrando = true; error = ''; mensaje = ''">{{ 'login.tabRegister' | translate }}</button>
         </div>
 
         @if (registrando) {

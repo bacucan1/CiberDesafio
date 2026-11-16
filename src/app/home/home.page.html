@@ -1,19 +1,22 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>CiberDesafío</ion-title>
-    <ion-button class="tutorial-control" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'controls'" slot="end" fill="clear" aria-label="Cómo jugar" (click)="abrirAyuda()">
-      <ion-icon name="help-circle" aria-hidden="true"></ion-icon>
-      <span class="help-label">Ayuda</span>
-    </ion-button>
-    <ion-button class="tutorial-control" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'controls'" slot="end" fill="clear" [attr.aria-label]="sonidoActivo ? 'Desactivar sonido' : 'Activar sonido'" (click)="toggleSonido()">
-      <ion-icon [name]="sonidoActivo ? 'volume-high' : 'volume-mute'"></ion-icon>
-    </ion-button>
-    <ion-button class="tutorial-control" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'controls'" slot="end" fill="clear" routerLink="/perfil" aria-label="Mi perfil">
-      <ion-icon name="person-circle"></ion-icon>
-    </ion-button>
-    <ion-button class="tutorial-control" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'controls'" slot="end" fill="clear" [disabled]="cerrandoSesion" (click)="cerrarSesion()" aria-label="Cerrar sesión">
-      <ion-icon name="log-out"></ion-icon>
-    </ion-button>
+    <ion-title>{{ 'common.appName' | translate }}</ion-title>
+    <div slot="end" class="header-actions-group">
+      <app-language-selector></app-language-selector>
+      <ion-button class="tutorial-control" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'controls'" fill="clear" [attr.aria-label]="'common.help' | translate" (click)="abrirAyuda()">
+        <ion-icon name="help-circle" aria-hidden="true"></ion-icon>
+        <span class="help-label">{{ 'common.help' | translate }}</span>
+      </ion-button>
+      <ion-button class="tutorial-control" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'controls'" fill="clear" [attr.aria-label]="sonidoActivo ? 'Desactivar sonido' : 'Activar sonido'" (click)="toggleSonido()">
+        <ion-icon [name]="sonidoActivo ? 'volume-high' : 'volume-mute'"></ion-icon>
+      </ion-button>
+      <ion-button class="tutorial-control" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'controls'" fill="clear" routerLink="/perfil" [attr.aria-label]="'nav.profile' | translate">
+        <ion-icon name="person-circle"></ion-icon>
+      </ion-button>
+      <ion-button class="tutorial-control" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'controls'" fill="clear" [disabled]="cerrandoSesion" (click)="cerrarSesion()" [attr.aria-label]="'common.logout' | translate">
+        <ion-icon name="log-out"></ion-icon>
+      </ion-button>
+    </div>
   </ion-toolbar>
 </ion-header>
 
@@ -22,26 +25,45 @@
     <section class="welcome-block page-reveal">
       <div>
         <p class="eyebrow">CYBERSHIELD TEAM · RUTA ESTUDIANTE</p>
-        <h1>Cada decisión cambia tu historia.</h1>
-        <p class="intro">Desliza, decide y descubre cómo tus acciones transforman la seguridad de toda tu comunidad.</p>
+        <h1>{{ 'welcome.titlePart1' | translate }} {{ 'welcome.titlePart2' | translate }}</h1>
+        <p class="intro">{{ 'welcome.tagline' | translate }}</p>
         @if (errorSesion) { <p role="alert">{{ errorSesion }}</p> }
         @if (errorPersistencia && !mostrandoRetroalimentacion) { <p role="alert">{{ errorPersistencia }}</p> }
       </div>
       <div class="shield-mark"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon></div>
     </section>
 
+    <!-- Interactive AI Challenge Mode Launch Banner -->
+    <div class="ai-trigger-card page-reveal" (click)="abrirModoAi()">
+      <div class="ai-trigger-copy">
+        <span class="ai-chip">
+          <ion-icon name="sparkles" aria-hidden="true"></ion-icon>
+          {{ 'game.aiModeBadge' | translate }}
+        </span>
+        <h3>
+          <ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon>
+          {{ 'game.aiModeTitle' | translate }}
+        </h3>
+        <p>{{ 'game.aiModeDesc' | translate }}</p>
+      </div>
+      <button type="button" class="ai-launch-btn">
+        <ion-icon name="sparkles" aria-hidden="true"></ion-icon>
+        {{ 'game.openAiMode' | translate }}
+      </button>
+    </div>
+
     <section class="player-stats page-reveal" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'stats'">
-      <div class="stat-item"><span class="stat-icon xp-icon"><ion-icon name="star"></ion-icon></span><div><strong>{{ puntos }} XP</strong><small>Recompensa total</small></div></div>
-      <div class="stat-item"><span class="stat-icon streak-icon"><ion-icon name="flame"></ion-icon></span><div><strong>{{ racha }} {{ racha === 1 ? 'racha' : 'rachas' }}</strong><small>Decisiones correctas seguidas</small></div></div>
-      <div class="stat-item"><span class="stat-icon level-icon"><ion-icon name="medal"></ion-icon></span><div><strong>{{ nivel }}</strong><small>Nivel actual</small></div></div>
+      <div class="stat-item"><span class="stat-icon xp-icon"><ion-icon name="star"></ion-icon></span><div><strong>{{ puntos }} {{ 'game.xp' | translate }}</strong><small>Recompensa total</small></div></div>
+      <div class="stat-item"><span class="stat-icon streak-icon"><ion-icon name="flame"></ion-icon></span><div><strong>{{ racha }} {{ racha === 1 ? 'racha' : 'rachas' }}</strong><small>{{ 'game.streak' | translate }}</small></div></div>
+      <div class="stat-item"><span class="stat-icon level-icon"><ion-icon name="medal"></ion-icon></span><div><strong>{{ nivel }}</strong><small>{{ 'game.level' | translate }}</small></div></div>
     </section>
 
     <section class="story-balance page-reveal" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'balance'">
       <div class="balance-heading"><span><ion-icon name="sparkles"></ion-icon> ESTADO DE LA HISTORIA</span><strong>{{ estadoHistoria }}</strong></div>
       <div class="balance-grid">
-        <div class="balance-meter"><div><span>Seguridad</span><strong>{{ seguridad }}</strong></div><ion-progress-bar [value]="seguridad / 100"></ion-progress-bar></div>
-        <div class="balance-meter"><div><span>Confianza</span><strong>{{ confianza }}</strong></div><ion-progress-bar [value]="confianza / 100"></ion-progress-bar></div>
-        <div class="balance-meter"><div><span>Reputación</span><strong>{{ reputacion }}</strong></div><ion-progress-bar [value]="reputacion / 100"></ion-progress-bar></div>
+        <div class="balance-meter"><div><span>{{ 'game.security' | translate }}</span><strong>{{ seguridad }}</strong></div><ion-progress-bar [value]="seguridad / 100"></ion-progress-bar></div>
+        <div class="balance-meter"><div><span>{{ 'game.trust' | translate }}</span><strong>{{ confianza }}</strong></div><ion-progress-bar [value]="confianza / 100"></ion-progress-bar></div>
+        <div class="balance-meter"><div><span>{{ 'game.reputation' | translate }}</span><strong>{{ reputacion }}</strong></div><ion-progress-bar [value]="reputacion / 100"></ion-progress-bar></div>
       </div>
     </section>
 
@@ -146,4 +168,8 @@
       </div>
     </section>
   </div>
+}
+
+@if (mostrarModalAi) {
+  <app-ai-challenge-modal (challengeClosed)="cerrarModoAi()" (pointsAwarded)="onAiPuntos($event)"></app-ai-challenge-modal>
 }

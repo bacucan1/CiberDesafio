@@ -26,7 +26,8 @@ ion-content { --background: #f7f8fc; }
 .orbit-two { height: 740px; right: -350px; top: 11%; width: 740px; }
 .decorative-mark { color: rgba(170, 158, 255, .55); font-size: 2.6rem; position: absolute; }
 .mark-one { right: 16%; top: 25%; }.mark-two { bottom: 22%; right: 14%; font-size: 5rem; }
-.form-panel { align-items: center; display: flex; justify-content: center; min-height: 100vh; padding: 54px 32px; }
+.form-panel { align-items: center; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 54px 32px; position: relative; }
+.login-lang-wrap { align-self: flex-end; margin-bottom: 14px; z-index: 10; }
 .auth-card { max-width: 430px; width: 100%; }
 .form-heading .eyebrow { margin-bottom: 12px; }
 .form-heading h2 { color: #20233c; font-size: clamp(2rem, 3vw, 2.55rem); font-weight: 780; letter-spacing: -.045em; margin: 0 0 9px; }

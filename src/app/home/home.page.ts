@@ -8,6 +8,9 @@ import { AuthService } from '../core/services/auth.service';
 import { SimulationService } from '../core/services/simulation.service';
 import { DecisionQueueService } from '../core/services/decision-queue.service';
 import { ScenarioService } from '../core/services/scenario.service';
+import { LanguageSelectorComponent } from '../core/components/language-selector/language-selector.component';
+import { AiChallengeModalComponent } from '../core/components/ai-challenge-modal/ai-challenge-modal.component';
+import { TranslatePipe } from '../core/pipes/translate.pipe';
 
 interface TutorialStep {
   label: string;
@@ -20,9 +23,29 @@ interface TutorialStep {
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss', 'home.futuristic.scss', 'home.gestures.scss', 'home.responsive.scss'],
-  imports: [RouterLink, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar],
+  imports: [
+    RouterLink,
+    IonBadge,
+    IonButton,
+    IonCard,
+    IonCardContent,
+    IonCardHeader,
+    IonCardSubtitle,
+    IonCardTitle,
+    IonChip,
+    IonContent,
+    IonHeader,
+    IonIcon,
+    IonProgressBar,
+    IonTitle,
+    IonToolbar,
+    LanguageSelectorComponent,
+    AiChallengeModalComponent,
+    TranslatePipe,
+  ],
 })
 export class HomePage {
+  mostrarModalAi = false;
   private readonly onboardingStorageKey = 'ciberdesafio.onboarding-completado';
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly auth = inject(AuthService);
@@ -130,6 +153,23 @@ export class HomePage {
   abrirAyuda(): void {
     this.indicePasoTutorial = 0;
     this.mostrarTutorial = true;
+  }
+
+  abrirModoAi(): void {
+    this.mostrarModalAi = true;
+  }
+
+  cerrarModoAi(): void {
+    this.mostrarModalAi = false;
+  }
+
+  onAiPuntos(puntosGanados: number): void {
+    this.puntos += puntosGanados;
+    if (puntosGanados > 50) {
+      this.racha += 1;
+    } else {
+      this.racha = 0;
+    }
   }
 
   siguientePasoTutorial(): void {

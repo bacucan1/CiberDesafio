@@ -4,8 +4,7 @@ import { ActivatedRouteSnapshot, Router, RouterStateSnapshot, UrlTree } from '@a
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RolUsuario } from '../models/domain.models';
 
-// El guard solo depende de AuthService y Router: se simulan para no tocar Firebase.
-vi.mock('../services/auth.service', () => ({ AuthService: class AuthService {} }));
+// El guard solo depende de AuthService y Router: se simulan en TestBed / Injector para no tocar Firebase.
 import { AuthService } from '../services/auth.service';
 import { roleGuard } from './role.guard';
 

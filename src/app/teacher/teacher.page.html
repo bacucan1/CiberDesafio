@@ -1,10 +1,13 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Panel docente</ion-title>
-    <ion-button slot="end" fill="clear" routerLink="/perfil">Mi perfil</ion-button>
-    <ion-button slot="end" fill="clear" [disabled]="cerrandoSesion" (click)="cerrarSesion()" aria-label="Cerrar sesión">
-      <ion-icon name="log-out"></ion-icon>
-    </ion-button>
+    <ion-title>{{ 'teacher.title' | translate }}</ion-title>
+    <div slot="end" class="header-actions-group">
+      <app-language-selector></app-language-selector>
+      <ion-button fill="clear" routerLink="/perfil">{{ 'nav.profile' | translate }}</ion-button>
+      <ion-button fill="clear" [disabled]="cerrandoSesion" (click)="cerrarSesion()" [attr.aria-label]="'common.logout' | translate">
+        <ion-icon name="log-out"></ion-icon>
+      </ion-button>
+    </div>
   </ion-toolbar>
 </ion-header>
 

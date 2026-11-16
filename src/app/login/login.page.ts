@@ -5,12 +5,14 @@ import { IonButton, IonContent, IonIcon, IonInput } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { AuthService, CodigoDocenteInvalidoError } from '../core/services/auth.service';
 import { alertCircle, arrowForward, business, checkmarkCircle, eye, eyeOff, informationCircle, key, lockClosed, logoGoogle, mail, people, person, school, shieldCheckmark } from 'ionicons/icons';
+import { LanguageSelectorComponent } from '../core/components/language-selector/language-selector.component';
+import { TranslatePipe } from '../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-login',
   templateUrl: './login.page.html',
   styleUrls: ['./login.page.scss'],
-  imports: [FormsModule, RouterLink, IonButton, IonContent, IonIcon, IonInput],
+  imports: [FormsModule, RouterLink, IonButton, IonContent, IonIcon, IonInput, LanguageSelectorComponent, TranslatePipe],
 })
 export class LoginPage {
   private readonly auth = inject(AuthService);

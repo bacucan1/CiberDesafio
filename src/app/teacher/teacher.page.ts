@@ -9,6 +9,8 @@ import type { Unsubscribe } from 'firebase/firestore';
 import { AuthService } from '../core/services/auth.service';
 import { GroupInvite, GroupResults, GroupStudentProgress, InstitutionalService, TeacherGroup } from '../core/services/institutional.service';
 import { OperationTimeoutError, remainingTime, withTimeout } from '../core/utils/async.utils';
+import { LanguageSelectorComponent } from '../core/components/language-selector/language-selector.component';
+import { TranslatePipe } from '../core/pipes/translate.pipe';
 
 const TIMEOUT_CARGA_MS = 8_000;
 
@@ -16,7 +18,30 @@ const TIMEOUT_CARGA_MS = 8_000;
   selector: 'app-teacher',
   templateUrl: './teacher.page.html',
   styleUrls: ['./teacher.page.scss'],
-  imports: [DatePipe, FormsModule, RouterLink, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonSelect, IonSelectOption, IonText, IonTitle, IonToolbar],
+  imports: [
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    IonBadge,
+    IonButton,
+    IonCard,
+    IonCardContent,
+    IonCardHeader,
+    IonCardTitle,
+    IonContent,
+    IonHeader,
+    IonIcon,
+    IonInput,
+    IonItem,
+    IonLabel,
+    IonSelect,
+    IonSelectOption,
+    IonText,
+    IonTitle,
+    IonToolbar,
+    LanguageSelectorComponent,
+    TranslatePipe,
+  ],
 })
 export class TeacherPage implements OnDestroy, OnInit {
   private readonly auth = inject(AuthService);
@@ -44,6 +69,12 @@ export class TeacherPage implements OnDestroy, OnInit {
 
   constructor() {
     addIcons({ barChart, logOut, people, shieldCheckmark });
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    if (this.institucion && !this.cargando && !this.actualizando) {
+      await this.actualizarDatos();
+    }
   }
 
   async cerrarSesion(): Promise<void> {

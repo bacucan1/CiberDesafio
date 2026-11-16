@@ -105,4 +105,19 @@ describe('HomePage', () => {
 
     expect(sesionesCerradas).toBe(1);
   });
+
+  it('abre y cierra el modo de desafío con IA y acumula puntos', () => {
+    expect(component.mostrarModalAi).toBe(false);
+    component.abrirModoAi();
+    expect(component.mostrarModalAi).toBe(true);
+
+    const puntosPrevios = component.puntos;
+    const rachaPrevia = component.racha;
+    component.onAiPuntos(120);
+    expect(component.puntos).toBe(puntosPrevios + 120);
+    expect(component.racha).toBe(rachaPrevia + 1);
+
+    component.cerrarModoAi();
+    expect(component.mostrarModalAi).toBe(false);
+  });
 });

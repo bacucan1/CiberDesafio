@@ -1,6 +1,7 @@
 .teacher-shell { --ink: #eee8d8; --muted: #a49db8; --line: rgba(214, 189, 116, 0.35); color: #eee8d8; margin: 0 auto; max-width: 1100px; padding: 48px 24px 80px; }
 ion-content { --background: #0a0c18; }
 ion-toolbar { --background: #0a0c18; --color: #eee8d8; --border-width: 0; }
+.header-actions-group { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
 .eyebrow { color: #7453c8; font-size: .68rem; font-weight: 850; letter-spacing: .12em; margin: 0 0 10px; }
 h1 { font-size: clamp(2.4rem, 5vw, 3.8rem); letter-spacing: -.045em; margin: 9px 0; }
 .intro { color: var(--muted); font-size: 1rem; line-height: 1.55; margin: 0 0 30px; max-width: 690px; }

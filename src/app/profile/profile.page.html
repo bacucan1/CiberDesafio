@@ -1,20 +1,23 @@
 <ion-header>
   <ion-toolbar>
     <ion-button slot="start" fill="clear" [routerLink]="perfil?.rol === 'docente' ? '/docente' : '/home'">
-      Volver
+      {{ 'common.back' | translate }}
     </ion-button>
-    <ion-title>Mi perfil</ion-title>
+    <ion-title>{{ 'profile.title' | translate }}</ion-title>
+    <div slot="end" style="padding-right: 8px;">
+      <app-language-selector></app-language-selector>
+    </div>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
   <main class="profile-shell">
-    <p class="eyebrow">CUENTA CIBERDESAFÍO</p>
-    <h1>Tu perfil</h1>
-    <p class="intro">Consulta tus datos y mantén actualizada tu información personal.</p>
+    <p class="eyebrow">{{ 'profile.eyebrow' | translate }}</p>
+    <h1>{{ 'profile.title' | translate }}</h1>
+    <p class="intro">{{ 'profile.intro' | translate }}</p>
 
     @if (cargando) {
-      <p role="status">Cargando tu perfil…</p>
+      <p role="status">{{ 'profile.loadingProfile' | translate }}</p>
     } @else if (perfil) {
       <section class="profile-card" aria-labelledby="account-heading">
         <div class="profile-heading">
@@ -144,7 +147,12 @@
         </ion-button>
       </section>
     } @else if (error) {
-      <ion-text color="danger"><p class="notice" role="alert">{{ error }}</p></ion-text>
+      <section class="profile-card" aria-label="Error al cargar perfil">
+        <ion-text color="danger"><p class="notice" role="alert">{{ error }}</p></ion-text>
+        <ion-button [disabled]="cargando" (click)="reintentarCarga()">
+          {{ cargando ? ('common.loading' | translate) : ('common.retry' | translate) }}
+        </ion-button>
+      </section>
     } @else if (usuario && perfilPorCompletar) {
       <section class="profile-card" aria-labelledby="complete-profile-heading">
         <div class="section-title">

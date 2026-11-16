@@ -7,6 +7,8 @@ import { RolUsuario, Usuario } from '../core/models/domain.models';
 import { AuthService } from '../core/services/auth.service';
 import { InstitutionalService } from '../core/services/institutional.service';
 import { OperationTimeoutError, remainingTime, withTimeout } from '../core/utils/async.utils';
+import { LanguageSelectorComponent } from '../core/components/language-selector/language-selector.component';
+import { TranslatePipe } from '../core/pipes/translate.pipe';
 
 const TIMEOUT_CARGA_MS = 8_000;
 
@@ -14,7 +16,24 @@ const TIMEOUT_CARGA_MS = 8_000;
   selector: 'app-profile',
   templateUrl: './profile.page.html',
   styleUrls: ['./profile.page.scss'],
-  imports: [FormsModule, RouterLink, IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonList, IonSelect, IonSelectOption, IonText, IonTitle, IonToolbar],
+  imports: [
+    FormsModule,
+    RouterLink,
+    IonButton,
+    IonContent,
+    IonHeader,
+    IonInput,
+    IonItem,
+    IonLabel,
+    IonList,
+    IonSelect,
+    IonSelectOption,
+    IonText,
+    IonTitle,
+    IonToolbar,
+    LanguageSelectorComponent,
+    TranslatePipe,
+  ],
 })
 export class ProfilePage {
   private readonly auth = inject(AuthService);
