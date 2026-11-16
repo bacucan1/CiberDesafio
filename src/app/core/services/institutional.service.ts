@@ -50,6 +50,17 @@ export interface GroupResults {
   fechaCalculo: string;
 }
 
+export interface GroupStudentProgress {
+  uid: string;
+  nombre: string;
+  misionesCompletadas: number;
+  xp: number;
+  aciertos: number;
+  decisiones: number;
+  fechaVinculacion: string;
+  fechaActualizacion: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class InstitutionalService {
   private readonly firestore = getFirestore(firebaseApp);
@@ -180,11 +191,22 @@ export class InstitutionalService {
         throw new Error('El código venció, fue revocado o alcanzó su límite de usos.');
       }
 
+      const grupoId = datosInvitacion['grupoId'];
+      const nombre = datosPerfil['nombre'];
+      if (typeof grupoId !== 'string' || typeof nombre !== 'string' || !nombre.trim()) {
+        throw new Error('El código o el perfil no contienen los datos necesarios para vincularse.');
+      }
+      const estudianteRef = doc(this.firestore, 'grupos', grupoId, 'estudiantes', uid);
+      const estudiante = await transaction.get(estudianteRef);
+      if (estudiante.exists()) {
+        throw new Error('Esta cuenta ya tiene una vinculación registrada para el grupo.');
+      }
+
       const grado = datosInvitacion['grado'];
       transaction.update(profileRef, {
         institucion: datosInvitacion['institucion'],
         grupo: datosInvitacion['grupo'],
-        grupoId: datosInvitacion['grupoId'],
+        grupoId,
         codigoVinculacion: datosInvitacion['codigo'],
         ...(typeof grado === 'number'
           ? { grado }
@@ -192,10 +214,21 @@ export class InstitutionalService {
         fechaActualizacion: new Date().toISOString(),
       });
       transaction.update(inviteRef, { usos: increment(1) });
+      const ahora = new Date().toISOString();
+      transaction.set(estudianteRef, {
+        uid,
+        nombre: nombre.trim(),
+        misionesCompletadas: 0,
+        xp: 0,
+        aciertos: 0,
+        decisiones: 0,
+        fechaVinculacion: ahora,
+        fechaActualizacion: ahora,
+      });
       resultado = {
         grupo: datosInvitacion['grupo'],
         ...(typeof grado === 'number' ? { grado } : {}),
-        grupoId: datosInvitacion['grupoId'],
+        grupoId,
         institucion: datosInvitacion['institucion'],
       };
     });
@@ -226,18 +259,68 @@ export class InstitutionalService {
     });
   }
 
+  async listarEstudiantes(grupoId: string): Promise<GroupStudentProgress[]> {
+    await this.validarGrupoDocente(grupoId);
+    const snapshot = await getDocs(collection(this.firestore, 'grupos', grupoId, 'estudiantes'));
+    return snapshot.docs.map((item) => {
+      const data = item.data();
+      const numeros = ['misionesCompletadas', 'xp', 'aciertos', 'decisiones'] as const;
+      if (data['uid'] !== item.id
+        || typeof data['nombre'] !== 'string'
+        || !numeros.every((campo) => Number.isSafeInteger(data[campo]) && Number(data[campo]) >= 0)
+        || typeof data['fechaVinculacion'] !== 'string'
+        || typeof data['fechaActualizacion'] !== 'string') {
+        throw new Error('El registro de un estudiante tiene un formato no válido.');
+      }
+      return {
+        uid: item.id,
+        nombre: data['nombre'],
+        misionesCompletadas: data['misionesCompletadas'] as number,
+        xp: data['xp'] as number,
+        aciertos: data['aciertos'] as number,
+        decisiones: data['decisiones'] as number,
+        fechaVinculacion: data['fechaVinculacion'],
+        fechaActualizacion: data['fechaActualizacion'],
+      };
+    }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }
+
+  async quitarEstudiante(grupoId: string, uid: string): Promise<void> {
+    await this.validarGrupoDocente(grupoId);
+    const memberRef = doc(this.firestore, 'grupos', grupoId, 'estudiantes', uid);
+    const profileRef = doc(this.firestore, 'usuarios', uid);
+    await runTransaction(this.firestore, async (transaction) => {
+      const [member, profile] = await Promise.all([
+        transaction.get(memberRef),
+        transaction.get(profileRef),
+      ]);
+      if (!member.exists() || !profile.exists()
+        || profile.data()['rol'] !== 'estudiante'
+        || profile.data()['grupoId'] !== grupoId) {
+        throw new Error('El estudiante ya no pertenece a este grupo.');
+      }
+
+      transaction.update(profileRef, {
+        institucion: '',
+        grupo: deleteField(),
+        grupoId: deleteField(),
+        grado: deleteField(),
+        codigoVinculacion: deleteField(),
+        fechaActualizacion: new Date().toISOString(),
+      });
+      transaction.delete(memberRef);
+    });
+  }
+
   async listarResultados(): Promise<GroupResults[]> {
-    const uid = this.usuarioId();
-    const perfil = await getDoc(doc(this.firestore, 'usuarios', uid));
-    const institucion = perfil.data()?.['institucion'];
-    if (!perfil.exists() || perfil.data()?.['rol'] !== 'docente' || typeof institucion !== 'string' || !institucion) {
-      throw new Error('Se requiere un perfil docente aprobado y una institución asignada.');
-    }
-    const snapshot = await getDocs(query(
-      collection(this.firestore, 'resultados_agregados'),
-      where('institucion', '==', institucion),
-    ));
-    return this.mapearResultados(snapshot.docs);
+    const grupos = await this.listarGrupos();
+    const resultados = await Promise.all(grupos.flatMap((grupo) => grupo.grupoId
+      ? [getDocs(query(
+        collection(this.firestore, 'resultados_agregados'),
+        where('grupoId', '==', grupo.grupoId),
+      ))]
+      : []));
+    return this.mapearResultados(resultados.flatMap((snapshot) => snapshot.docs));
   }
 
   async solicitarActualizacionPerfil(datos: {
@@ -287,29 +370,35 @@ export class InstitutionalService {
     alActualizar: (resultados: GroupResults[]) => void,
     alFallar: (error: Error) => void,
   ): Unsubscribe {
-    const uid = this.usuarioId();
-    const perfil = this.authService.obtenerPerfil();
-    let cancelar: Unsubscribe | undefined;
+    const resultadosPorGrupo = new Map<string, GroupResults[]>();
+    const cancelaciones: Unsubscribe[] = [];
     let cancelada = false;
-    void perfil.then((usuario) => {
+    void this.listarGrupos().then((grupos) => {
       if (cancelada) return;
-      if (!usuario || usuario.uid !== uid || usuario.rol !== 'docente' || !usuario.institucion) {
-        throw new Error('Se requiere un perfil docente aprobado y una institución asignada.');
+      const gruposConId = grupos.filter((grupo): grupo is TeacherGroup & { grupoId: string } => !!grupo.grupoId);
+      if (!gruposConId.length) {
+        alActualizar([]);
+        return;
       }
-      cancelar = onSnapshot(query(
-        collection(this.firestore, 'resultados_agregados'),
-        where('institucion', '==', usuario.institucion),
-      ), (snapshot) => {
-        alActualizar(this.mapearResultados(snapshot.docs));
-      }, (error) => {
-        alFallar(error);
-      });
+
+      for (const grupo of gruposConId) {
+        const cancelar = onSnapshot(query(
+          collection(this.firestore, 'resultados_agregados'),
+          where('grupoId', '==', grupo.grupoId),
+        ), (snapshot) => {
+          resultadosPorGrupo.set(grupo.grupoId, this.mapearResultados(snapshot.docs));
+          alActualizar([...resultadosPorGrupo.values()].flat());
+        }, (error) => {
+          alFallar(error);
+        });
+        cancelaciones.push(cancelar);
+      }
     }).catch((error: unknown) => {
       if (!cancelada) alFallar(error instanceof Error ? error : new Error('No se pudieron consultar los resultados.'));
     });
     return () => {
       cancelada = true;
-      cancelar?.();
+      cancelaciones.forEach((cancelar) => cancelar());
     };
   }
 
@@ -334,6 +423,16 @@ export class InstitutionalService {
     const uid = this.auth.currentUser?.uid;
     if (!uid) throw new Error('Debes iniciar sesión para realizar esta operación.');
     return uid;
+  }
+
+  private async validarGrupoDocente(grupoId: string): Promise<void> {
+    if (!/^[a-f0-9]{64}$/.test(grupoId)) {
+      throw new Error('El grupo seleccionado no tiene un identificador válido.');
+    }
+    const grupos = await this.listarGrupos();
+    if (!grupos.some((grupo) => grupo.grupoId === grupoId)) {
+      throw new Error('No tienes permiso para consultar o modificar este grupo.');
+    }
   }
 
   private generarCodigo(): string {

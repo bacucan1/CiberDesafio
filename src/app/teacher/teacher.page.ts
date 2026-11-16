@@ -7,7 +7,7 @@ import { addIcons } from 'ionicons';
 import { barChart, logOut, people, shieldCheckmark } from 'ionicons/icons';
 import type { Unsubscribe } from 'firebase/firestore';
 import { AuthService } from '../core/services/auth.service';
-import { GroupInvite, GroupResults, InstitutionalService, TeacherGroup } from '../core/services/institutional.service';
+import { GroupInvite, GroupResults, GroupStudentProgress, InstitutionalService, TeacherGroup } from '../core/services/institutional.service';
 import { OperationTimeoutError, remainingTime, withTimeout } from '../core/utils/async.utils';
 
 const TIMEOUT_CARGA_MS = 8_000;
@@ -25,6 +25,7 @@ export class TeacherPage implements OnDestroy, OnInit {
   institucion = '';
   grupos: TeacherGroup[] = [];
   resultados: GroupResults[] = [];
+  estudiantes: GroupStudentProgress[] = [];
   codigos: GroupInvite[] = [];
   grupoSeleccionado = '';
   nuevoGrupo = '';
@@ -38,6 +39,7 @@ export class TeacherPage implements OnDestroy, OnInit {
   private cancelarObservacionResultados?: Unsubscribe;
   private timeoutObservacionResultados?: ReturnType<typeof setTimeout>;
   actualizando = false;
+  cargandoEstudiantes = false;
   cerrandoSesion = false;
 
   constructor() {
@@ -125,6 +127,7 @@ export class TeacherPage implements OnDestroy, OnInit {
     this.codigos = codigos;
     this.resultadosDelGrupoCache = null;
     if (!this.grupoSeleccionado && grupos.length) this.grupoSeleccionado = this.claveGrupo(grupos[0]);
+    await this.cargarEstudiantesGrupo();
   }
 
   async crearCodigo(): Promise<void> {
@@ -181,12 +184,42 @@ export class TeacherPage implements OnDestroy, OnInit {
     this.mensaje = '';
     try {
       await this.cargarDatos();
-      this.mensaje = 'Los resultados y códigos se actualizaron.';
+      this.mensaje = 'Los resultados, estudiantes y códigos se actualizaron.';
     } catch (error: unknown) {
       console.error('No se pudieron actualizar los datos del panel docente.', error);
       this.error = this.mensajeServicio(error, 'No se pudieron actualizar los datos. Intenta nuevamente.');
     } finally {
       this.actualizando = false;
+    }
+  }
+
+  async cambiarGrupo(clave: string): Promise<void> {
+    this.grupoSeleccionado = clave;
+    this.resultadosDelGrupoCache = null;
+    this.error = '';
+    try {
+      await this.cargarEstudiantesGrupo();
+    } catch (error: unknown) {
+      console.error('No se pudo cargar la lista de estudiantes del grupo.', error);
+      this.error = this.mensajeServicio(error, 'No se pudo cargar la lista de estudiantes. Intenta actualizar.');
+    }
+  }
+
+  async quitarEstudiante(estudiante: GroupStudentProgress): Promise<void> {
+    const grupo = this.grupos.find((item) => this.claveGrupo(item) === this.grupoSeleccionado);
+    if (!grupo?.grupoId || !window.confirm(
+      `¿Quitar a ${estudiante.nombre} de ${this.etiquetaGrupoSeleccionado}? Su cuenta y su progreso personal se conservarán, pero dejará de aparecer en este grupo.`,
+    )) return;
+
+    this.error = '';
+    this.mensaje = '';
+    try {
+      await this.institutional.quitarEstudiante(grupo.grupoId, estudiante.uid);
+      await this.cargarEstudiantesGrupo();
+      this.mensaje = `${estudiante.nombre} ya no pertenece al grupo. Sus resultados históricos agregados se conservan.`;
+    } catch (error: unknown) {
+      console.error('No se pudo quitar al estudiante del grupo.', error);
+      this.error = this.mensajeServicio(error, 'No se pudo quitar al estudiante. Intenta nuevamente.');
     }
   }
 
@@ -234,6 +267,25 @@ export class TeacherPage implements OnDestroy, OnInit {
 
   claveGrupo(grupo: TeacherGroup): string {
     return `${grupo.grupo}::${grupo.grado ?? ''}`;
+  }
+
+  private async cargarEstudiantesGrupo(): Promise<void> {
+    const grupo = this.grupos.find((item) => this.claveGrupo(item) === this.grupoSeleccionado);
+    if (!grupo?.grupoId) {
+      this.estudiantes = [];
+      return;
+    }
+
+    this.cargandoEstudiantes = true;
+    try {
+      this.estudiantes = await withTimeout(
+        this.institutional.listarEstudiantes(grupo.grupoId),
+        TIMEOUT_CARGA_MS,
+        'La lista de estudiantes tardó más de 8 segundos. Intenta actualizar.',
+      );
+    } finally {
+      this.cargandoEstudiantes = false;
+    }
   }
 
   private mensajeServicio(error: unknown, predeterminado: string): string {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteField, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
 
 const INSTITUCION = 'Colegio Central';
 const GRUPO_ID = 'a'.repeat(64);
@@ -37,6 +37,7 @@ beforeEach(async () => {
       setDoc(doc(db, 'usuarios/est2'), perfilEstudiante('est2')),
       setDoc(doc(db, 'usuarios/docA'), perfilDocente('docA')),
       setDoc(doc(db, 'usuarios/docB'), perfilDocente('docB', 'Colegio Norte', { codigoInvitacion: 'colegio-norte-TEACHER42' })),
+      setDoc(doc(db, 'usuarios/docC'), perfilDocente('docC')),
       setDoc(doc(db, `codigos_invitacion/${CODIGO_DOCENTE}`), { activo: true, institucion: INSTITUCION, usos: 0, maxUsos: 1 }),
       setDoc(doc(db, `codigos_invitacion/${CODIGO_DOCENTE_PRUEBA}`), {
         activo: true, institucion: INSTITUCION, usos: 0, maxUsos: 1,
@@ -62,6 +63,16 @@ beforeEach(async () => {
     await setDoc(doc(db, 'usuarios/est-vinculado'), perfilEstudiante('est-vinculado', {
       institucion: INSTITUCION, grupo: '901-A', grupoId: GRUPO_ID, grado: 9, codigoVinculacion: CODIGO_GRUPO,
     }));
+    await setDoc(doc(db, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`), {
+      uid: 'est-vinculado',
+      nombre: 'Estudiante',
+      misionesCompletadas: 0,
+      xp: 0,
+      aciertos: 0,
+      decisiones: 0,
+      fechaVinculacion: new Date().toISOString(),
+      fechaActualizacion: new Date().toISOString(),
+    });
   });
 });
 
@@ -177,6 +188,16 @@ describe('vinculación de estudiantes con código de grupo', () => {
         codigoVinculacion: CODIGO_GRUPO, fechaActualizacion: new Date().toISOString(),
       });
       transaction.update(codigoRef, { usos: codigo.data().usos + 1 });
+      transaction.set(doc(db, `grupos/${GRUPO_ID}/estudiantes/est1`), {
+        uid: 'est1',
+        nombre: 'Estudiante',
+        misionesCompletadas: 0,
+        xp: 0,
+        aciertos: 0,
+        decisiones: 0,
+        fechaVinculacion: new Date().toISOString(),
+        fechaActualizacion: new Date().toISOString(),
+      });
     }));
     const perfilActualizado = await getDoc(perfilRef);
     assert.equal(perfilActualizado.data().institucion, INSTITUCION);
@@ -247,6 +268,74 @@ describe('vinculación de estudiantes con código de grupo', () => {
       where('profesores', 'array-contains', 'docA'),
     )));
   });
+
+  it('impide que otro docente se autoasigne a un grupo existente', async () => {
+    await assertFails(updateDoc(doc(como('docC'), `grupos/${GRUPO_ID}`), {
+      profesores: ['docA', 'docC'],
+      fechaActualizacion: Timestamp.now(),
+    }));
+  });
+
+  it('limita el roster al docente asignado y permite quitar a un estudiante de forma atómica', async () => {
+    const teacherDb = como('docA');
+    const rosterRef = collection(teacherDb, `grupos/${GRUPO_ID}/estudiantes`);
+    const profileRef = doc(teacherDb, 'usuarios/est-vinculado');
+    const memberRef = doc(teacherDb, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`);
+
+    await assertSucceeds(getDocs(rosterRef));
+    await assertFails(getDocs(collection(como('docB'), `grupos/${GRUPO_ID}/estudiantes`)));
+    await assertFails(getDoc(doc(como('est1'), `grupos/${GRUPO_ID}/estudiantes/est-vinculado`)));
+    await assertSucceeds(getDoc(profileRef));
+    await assertFails(getDoc(doc(como('docB'), 'usuarios/est-vinculado')));
+
+    await assertSucceeds(runTransaction(teacherDb, async (transaction) => {
+      const [profile, member] = await Promise.all([
+        transaction.get(profileRef),
+        transaction.get(memberRef),
+      ]);
+      assert.equal(profile.exists(), true);
+      assert.equal(member.exists(), true);
+      transaction.update(profileRef, {
+        institucion: '',
+        grupo: deleteField(),
+        grupoId: deleteField(),
+        grado: deleteField(),
+        codigoVinculacion: deleteField(),
+        fechaActualizacion: new Date().toISOString(),
+      });
+      transaction.delete(memberRef);
+    }));
+
+    await assertFails(getDoc(profileRef));
+    const memberAfter = await getDoc(memberRef);
+    assert.equal(memberAfter.exists(), false);
+    await assertSucceeds(getDoc(doc(como('est-vinculado'), 'usuarios/est-vinculado')));
+  });
+
+  it('limita las actualizaciones de progreso al estudiante dueño y a incrementos válidos', async () => {
+    const ownDb = como('est-vinculado');
+    const memberRef = doc(ownDb, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`);
+    await assertSucceeds(updateDoc(memberRef, {
+      misionesCompletadas: 1,
+      xp: 100,
+      aciertos: 1,
+      decisiones: 1,
+      fechaActualizacion: new Date().toISOString(),
+    }));
+    await assertFails(updateDoc(memberRef, {
+      misionesCompletadas: 1,
+      xp: 150,
+      aciertos: 1,
+      decisiones: 2,
+      fechaActualizacion: new Date().toISOString(),
+    }));
+    await assertFails(updateDoc(doc(como('est1'), `grupos/${GRUPO_ID}/estudiantes/est-vinculado`), {
+      xp: 200,
+      aciertos: 2,
+      decisiones: 2,
+      fechaActualizacion: new Date().toISOString(),
+    }));
+  });
 });
 
 describe('resultados agregados y privacidad', () => {
@@ -275,10 +364,11 @@ describe('resultados agregados y privacidad', () => {
     }));
   });
 
-  it('el docente consulta resultados agregados de su institución', async () => {
+  it('el docente consulta resultados agregados solo de sus grupos', async () => {
     const db = como('docA');
     await assertSucceeds(getDoc(doc(db, `resultados_agregados/${GRUPO_ID}_fraude`)));
-    await assertSucceeds(getDocs(query(collection(db, 'resultados_agregados'), where('institucion', '==', INSTITUCION))));
+    await assertSucceeds(getDocs(query(collection(db, 'resultados_agregados'), where('grupoId', '==', GRUPO_ID))));
+    await assertFails(getDocs(query(collection(db, 'resultados_agregados'), where('institucion', '==', INSTITUCION))));
     await assertFails(getDoc(doc(como('docB'), `resultados_agregados/${GRUPO_ID}_fraude`)));
   });
 

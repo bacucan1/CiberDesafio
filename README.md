@@ -76,8 +76,8 @@ Firebase Hosting
 - Flujo de juego narrativo para estudiantes.
 - Tutorial de primera visita y ayuda reabrible; la preferencia se guarda en `localStorage` del navegador.
 - Mazo de escenarios y puntuación calculados localmente en el cliente.
-- Persistencia directa en Firestore de métricas agregadas por grupo y eje; no se guarda historial individual de decisiones.
-- Panel docente con resultados agregados y sin historial individual de estudiantes.
+- Persistencia directa en Firestore de métricas agregadas por grupo y eje, más un resumen de progreso por estudiante vinculado.
+- Panel docente con nombre, misiones completadas, XP y aciertos de estudiantes de sus grupos; no muestra correos ni el historial de decisiones.
 
 ### Backend y servicios
 
@@ -154,7 +154,7 @@ Actualmente no hay instituciones integradas: el alta docente sin código es solo
 
 El proyecto conserva la validación transaccional de códigos administrativos como base para ese futuro flujo, pero el formulario actual de registro no los solicita.
 
-El panel docente muestra resultados agregados por grupo y eje, cantidad de participantes, porcentaje global ponderado y prioridad de refuerzo; permite actualizar la vista manualmente. No muestra nombres, correos ni resultados individuales. Las métricas se calculan en el dispositivo y no deben tratarse como evidencia de evaluación verificada.
+El panel docente muestra el nombre y el resumen de progreso de cada estudiante de sus grupos, sin correo ni historial de decisiones, además de resultados agregados por grupo y eje. Las reglas de Firestore limitan la lectura y la gestión a los docentes asignados al grupo. Al quitar a un estudiante, se desvincula su perfil y se conserva su cuenta, su historial personal y los resultados agregados históricos del grupo. Las métricas se calculan en el dispositivo y no deben tratarse como evidencia de evaluación verificada.
 
 ### API
 

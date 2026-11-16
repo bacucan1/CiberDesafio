@@ -1,4 +1,4 @@
-import { Component, ElementRef, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -6,7 +6,7 @@ import { arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, docume
 import { Decision, Escenario, NodoDecision, OpcionDecision } from '../core/models/domain.models';
 import { AuthService } from '../core/services/auth.service';
 import { SimulationService } from '../core/services/simulation.service';
-import { DecisionService } from '../core/services/decision.service';
+import { DecisionQueueService } from '../core/services/decision-queue.service';
 import { ScenarioService } from '../core/services/scenario.service';
 
 interface TutorialStep {
@@ -27,7 +27,7 @@ export class HomePage {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly auth = inject(AuthService);
   private readonly simulation = inject(SimulationService);
-  private readonly decisionStore = inject(DecisionService);
+  private readonly decisionQueue = inject(DecisionQueueService);
   private readonly scenarioCatalog = inject(ScenarioService);
   readonly pasosTutorial: TutorialStep[] = [
     {
@@ -105,7 +105,6 @@ export class HomePage {
   desplazamientoCarta = 0;
   arrastrandoCarta = false;
   errorPersistencia = '';
-  private decisionPendiente: Decision | null = null;
   private aciertosConocidos = 0;
   private inicioGesto?: number;
   private gestoConfirmado = false;
@@ -122,6 +121,10 @@ export class HomePage {
 
   get pasoTutorial(): TutorialStep {
     return this.pasosTutorial[this.indicePasoTutorial];
+  }
+
+  ionViewWillEnter(): void {
+    void this.guardarDecisionPendiente();
   }
 
   abrirAyuda(): void {
@@ -193,23 +196,62 @@ export class HomePage {
   }
 
   async guardarDecisionPendiente(): Promise<void> {
-    const decision = this.decisionPendiente;
-    if (!decision || this.guardandoDecision) return;
+    const uid = this.auth.usuarioActual()?.uid;
+    if (!uid || this.guardandoDecision) return;
     this.guardandoDecision = true;
     this.errorPersistencia = '';
     try {
-      await this.decisionStore.guardar(decision);
-      this.decisionPendiente = null;
+      const pendientes = await this.decisionQueue.sincronizarPendientes(uid);
+      this.errorPersistencia = pendientes
+        ? `Tu progreso quedó guardado en este dispositivo. Se sincronizarán ${pendientes} decisión(es) cuando vuelva la conexión.`
+        : '';
     } catch (error: unknown) {
       console.error('No se pudo guardar la decisión del estudiante.', error);
-      this.errorPersistencia = 'Esta decisión no pudo guardarse. Revisa tu conexión e inténtalo de nuevo.';
+      let pendientes = 0;
+      try {
+        pendientes = this.decisionQueue.cantidadPendiente(uid);
+      } catch (errorLectura: unknown) {
+        console.error('No se pudo consultar la cola local de decisiones.', errorLectura);
+        this.errorPersistencia = 'No se pudo leer el progreso pendiente de este dispositivo. Libera espacio y vuelve a intentarlo.';
+        return;
+      }
+      this.errorPersistencia = pendientes
+        ? `Tu progreso quedó guardado en este dispositivo. Se sincronizarán ${pendientes} decisión(es) cuando vuelva la conexión. ${this.mensajeErrorDecision(error)}`
+        : this.mensajeErrorDecision(error);
     } finally {
       this.guardandoDecision = false;
     }
   }
 
+  private async guardarDecisionEnCola(decision: Decision): Promise<void> {
+    try {
+      await this.decisionQueue.encolar(decision);
+      await this.guardarDecisionPendiente();
+    } catch (error: unknown) {
+      console.error('No se pudo guardar la decisión localmente.', error);
+      this.errorPersistencia = error instanceof Error
+        ? error.message
+        : 'No se pudo guardar el progreso en este dispositivo.';
+    }
+  }
+
+  private mensajeErrorDecision(error: unknown): string {
+    const codigo = error && typeof error === 'object' && 'code' in error
+      ? String(error.code)
+      : '';
+    if (codigo === 'permission-denied') {
+      return 'Firebase rechazó el guardado. Revisa las reglas publicadas y los permisos de la cuenta.';
+    }
+    if (codigo === 'unavailable' || codigo === 'deadline-exceeded' || codigo === 'network-request-failed') {
+      return 'Firebase no respondió o no hay conexión; se volverá a intentar automáticamente.';
+    }
+    return error instanceof Error
+      ? error.message
+      : 'No se pudo sincronizar el progreso. La decisión permanece pendiente en este dispositivo.';
+  }
+
   seleccionarRuta(ruta: Escenario): void {
-    if (this.escenario.id === ruta.id || this.decisionPendiente) return;
+    if (this.escenario.id === ruta.id) return;
     this.escenario = ruta;
     this.reiniciar();
   }
@@ -229,7 +271,7 @@ export class HomePage {
   }
 
   elegirOpcion(opcion: OpcionDecision): void {
-    if (this.mostrandoRetroalimentacion || this.completado || this.guardandoDecision || this.decisionPendiente) return;
+    if (this.mostrandoRetroalimentacion || this.completado) return;
     this.seleccionarOpcion(opcion);
     this.confirmarDecision();
   }
@@ -243,7 +285,7 @@ export class HomePage {
   }
 
   iniciarGesto(event: PointerEvent): void {
-    if (this.mostrandoRetroalimentacion || this.completado || this.guardandoDecision
+    if (this.mostrandoRetroalimentacion || this.completado
       || (event.target instanceof Element && event.target.closest('button, ion-button, a, input, select, ion-input, ion-select'))) return;
     this.inicioGesto = event.clientX;
     this.arrastrandoCarta = true;
@@ -312,8 +354,7 @@ export class HomePage {
   }
 
   confirmarDecision(): void {
-    if (!this.opcionSeleccionada || this.mostrandoRetroalimentacion || this.completado
-      || this.guardandoDecision || this.decisionPendiente) return;
+    if (!this.opcionSeleccionada || this.mostrandoRetroalimentacion || this.completado) return;
     const uid = this.auth.usuarioActual()?.uid;
     if (!uid) {
       this.errorPersistencia = 'Tu sesión no está activa. Vuelve a iniciar sesión para guardar tu progreso.';
@@ -328,8 +369,7 @@ export class HomePage {
     if (decision.correcta) {
       this.aciertosConocidos += 1;
     }
-    this.decisionPendiente = decision;
-    void this.guardarDecisionPendiente();
+    void this.guardarDecisionEnCola(decision);
     this.recompensaActual = decision.correcta ? 100 : 25;
     this.puntos += this.recompensaActual;
     this.racha = decision.correcta ? this.racha + 1 : 0;
@@ -342,7 +382,7 @@ export class HomePage {
   }
 
   continuar(): void {
-    if (!this.mostrandoRetroalimentacion || this.guardandoDecision || this.decisionPendiente) return;
+    if (!this.mostrandoRetroalimentacion) return;
     this.desplazamientoFeedback = 0;
     const siguienteNodoId = this.opcionSeleccionada?.siguienteNodoId;
     if (!siguienteNodoId) {
@@ -385,7 +425,36 @@ export class HomePage {
   }
 
   get guardadoPendiente(): boolean {
-    return this.decisionPendiente !== null;
+    const uid = this.auth.usuarioActual()?.uid;
+    if (!uid) return false;
+    try {
+      return this.decisionQueue.cantidadPendiente(uid) > 0;
+    } catch (error: unknown) {
+      console.error('No se pudo consultar la cola local de decisiones.', error);
+      return false;
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  manejarTecla(event: KeyboardEvent): void {
+    if (this.mostrarTutorial || event.altKey || event.ctrlKey || event.metaKey
+      || (event.target instanceof Element
+        && event.target.closest('button, a, ion-button, input, textarea, select, ion-input, ion-select'))) return;
+
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      if (this.mostrandoRetroalimentacion) {
+        if (event.key === 'ArrowRight') this.continuar();
+      } else if (!this.completado && this.nodoActual.opciones.length > 1) {
+        this.elegirOpcion(this.nodoActual.opciones[event.key === 'ArrowLeft' ? 0 : 1]);
+      }
+      event.preventDefault();
+      return;
+    }
+
+    if ((event.key === 'Enter' || event.key === ' ') && this.mostrandoRetroalimentacion) {
+      this.continuar();
+      event.preventDefault();
+    }
   }
 
   get totalPasos(): number {

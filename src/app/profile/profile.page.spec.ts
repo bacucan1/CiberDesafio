@@ -10,6 +10,7 @@ describe('ProfilePage', () => {
   let auth: {
     esperarSesion: ReturnType<typeof vi.fn>;
     obtenerPerfil: ReturnType<typeof vi.fn>;
+    asegurarPerfilActual: ReturnType<typeof vi.fn>;
     invalidarCache: ReturnType<typeof vi.fn>;
   };
 
@@ -22,6 +23,12 @@ describe('ProfilePage', () => {
         rol: 'estudiante',
         institucion: '',
         grupo: '',
+      }),
+      asegurarPerfilActual: vi.fn().mockResolvedValue({
+        uid: 'estudiante-1',
+        nombre: 'Estudiante',
+        rol: 'estudiante',
+        institucion: '',
       }),
       invalidarCache: vi.fn(),
     };
@@ -43,6 +50,16 @@ describe('ProfilePage', () => {
 
     expect(auth.esperarSesion).toHaveBeenCalledOnce();
     expect(auth.obtenerPerfil).toHaveBeenCalledOnce();
+  });
+
+  it('crea el perfil de estudiante si la cuenta autenticada aún no lo tiene', async () => {
+    auth.obtenerPerfil.mockResolvedValue(null);
+
+    await component.ionViewWillEnter();
+
+    expect(auth.asegurarPerfilActual).toHaveBeenCalledOnce();
+    expect(component.perfil?.uid).toBe('estudiante-1');
+    expect(component.cargando).toBe(false);
   });
 
   it('vuelve a consultar Firestore al reingresar desde un dispositivo móvil', async () => {

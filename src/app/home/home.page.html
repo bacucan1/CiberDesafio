@@ -96,13 +96,14 @@
               <h2>{{ opcionSeleccionada.consecuencia }}</h2>
               <p>{{ opcionSeleccionada.explicacion }}</p>
               @if (guardandoDecision) { <p role="status">Guardando tu progreso…</p> }
+              @if (guardadoPendiente && !guardandoDecision) { <p role="status">Hay progreso pendiente de sincronización. Puedes seguir jugando.</p> }
               @if (errorPersistencia) { <p role="alert">{{ errorPersistencia }}</p><ion-button fill="outline" (click)="guardarDecisionPendiente()">Reintentar guardado</ion-button> }
-              <span class="feedback-swipe-hint"><ion-icon name="arrow-forward"></ion-icon> Desliza a la derecha para continuar</span>
-              <ion-button [disabled]="guardandoDecision || guardadoPendiente" (click)="continuar()">Continuar <ion-icon slot="end" name="arrow-forward"></ion-icon></ion-button>
+              <span class="feedback-swipe-hint"><ion-icon name="arrow-forward"></ion-icon> Desliza o pulsa → / Enter para continuar</span>
+              <ion-button (click)="continuar()">Continuar <ion-icon slot="end" name="arrow-forward"></ion-icon></ion-button>
             </div>
           } @else {
             <div class="question-heading"><span class="step-number">{{ decisiones.length + 1 }}</span><div><p class="step-label">NUEVA SITUACIÓN</p><h2>{{ nodoActual.pregunta }}</h2></div></div>
-            <div class="swipe-hint"><ion-icon name="arrow-forward"></ion-icon><span>Desliza la carta o elige una respuesta para continuar</span><ion-icon name="arrow-forward"></ion-icon></div>
+            <div class="swipe-hint"><ion-icon name="arrow-forward"></ion-icon><span>Desliza, pulsa una respuesta o usa ← / →</span><ion-icon name="arrow-forward"></ion-icon></div>
             <div class="option-list story-options" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'options'">
               @for (opcion of nodoActual.opciones; track opcion.id; let index = $index) {
                 <button class="option-button" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'options'" [class.choice-left]="index === 0" [class.choice-right]="index === 1" (click)="elegirPorClic(opcion)">

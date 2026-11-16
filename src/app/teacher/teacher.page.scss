@@ -58,9 +58,22 @@ ion-card-title { color: #241b3b; font-size: 1.42rem; margin-top: 10px; }
 .empty-state > ion-icon { color: #7453c8; font-size: 30px; }
 .empty-state h3 { color: #241b3b; font-size: 1.1rem; margin: 14px 0 6px; }
 .empty-state p { font-size: .82rem; line-height: 1.55; margin: 0; max-width: 500px; }
+.students-section { margin-top: 32px; }
+.students-heading { align-items: center; display: flex; gap: 18px; justify-content: space-between; margin-bottom: 16px; }
+.students-heading h2 { font-size: 1.55rem; letter-spacing: -.025em; margin: 0; }
+.student-list { background: white; border: 1px solid var(--line); border-radius: 12px; color: #241b3b; overflow: hidden; }
+.student-row { align-items: center; border-bottom: 1px solid #eee8f5; display: grid; gap: 14px; grid-template-columns: minmax(170px, 1.7fr) repeat(3, minmax(78px, .7fr)) auto; padding: 14px 18px; }
+.student-row:last-child { border-bottom: 0; }
+.student-name strong, .student-name small, .student-metric span, .student-metric strong { display: block; }
+.student-name strong { font-size: .9rem; overflow-wrap: anywhere; }
+.student-name small { color: #6f6484; font-size: .68rem; margin-top: 4px; }
+.student-metric span { color: #6f6484; font-size: .65rem; }
+.student-metric strong { font-size: .82rem; margin-top: 4px; }
+.student-row ion-button { --border-radius: 8px; font-size: .7rem; margin: 0; }
 @media (max-width: 760px) {
   .teacher-shell { padding: 34px 16px 60px; }
   .group-tools-heading, .results-heading { align-items: flex-start; flex-direction: column; }
+  .students-heading { align-items: flex-start; flex-direction: column; }
   .results-controls { align-items: stretch; width: 100%; }
   .privacy-chip { white-space: normal; }
   .invite-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -69,10 +82,13 @@ ion-card-title { color: #241b3b; font-size: 1.42rem; margin-top: 10px; }
   .overview > div + div { border-left: 0; border-top: 1px solid rgba(255,255,255,.16); }
   .analysis-layout { grid-template-columns: 1fr; }
   .group-picker { flex-basis: auto; width: 100%; }
+  .student-row { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 14px; }
+  .student-name, .student-row ion-button { grid-column: 1 / -1; }
 }
 @media (max-width: 440px) {
   .group-tools { padding: 18px 14px; }
   .invite-form { grid-template-columns: 1fr; }
   .invite-form > ion-button { grid-column: auto; }
   .new-code { align-items: flex-start; flex-direction: column; }
+  .student-row { gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

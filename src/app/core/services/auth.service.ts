@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
 import { browserLocalPersistence, createUserWithEmailAndPassword, deleteUser, getAdditionalUserInfo, getAuth, getRedirectResult, GoogleAuthProvider, inMemoryPersistence, onAuthStateChanged, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, updateProfile, User, UserCredential } from 'firebase/auth';
-import { doc, getDoc, getFirestore, runTransaction, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, getFirestore, runTransaction } from 'firebase/firestore';
 import { firebaseApp } from '../firebase.config';
 import { RolUsuario, Usuario } from '../models/domain.models';
 
@@ -88,6 +88,15 @@ export class AuthService {
 
   async rolActual(): Promise<RolUsuario | null> {
     return (await this.obtenerPerfil())?.rol ?? null;
+  }
+
+  async asegurarPerfilActual(): Promise<Usuario> {
+    const usuario = await this.esperarSesion();
+    if (!usuario) throw new Error('Debes iniciar sesión para cargar tu perfil.');
+    const nombre = usuario.displayName?.trim()
+      || usuario.email?.split('@')[0]
+      || 'Estudiante';
+    return this.asegurarPerfil(usuario, { rol: 'estudiante' }, nombre);
   }
 
   async recuperarClave(correo: string): Promise<void> {
@@ -293,9 +302,23 @@ export class AuthService {
     const nombreLimpio = nombre.trim().replace(/\s+/g, ' ');
     if (!nombreLimpio) throw new Error('El nombre no puede estar vacío.');
     if (nombreLimpio.length > 80) throw new Error('El nombre no puede superar los 80 caracteres.');
-    await updateDoc(doc(this.firestore, 'usuarios', usuario.uid), {
+    const profileRef = doc(this.firestore, 'usuarios', usuario.uid);
+    await runTransaction(this.firestore, async (transaction) => {
+    const profile = await transaction.get(profileRef);
+    if (!profile.exists()) throw new Error('No encontramos tu perfil para actualizar el nombre.');
+    const grupoId = profile.data()['grupoId'];
+    const memberRef = typeof grupoId === 'string' && /^[a-f0-9]{64}$/.test(grupoId)
+      ? doc(this.firestore, 'grupos', grupoId, 'estudiantes', usuario.uid)
+      : undefined;
+    const member = memberRef ? await transaction.get(memberRef) : undefined;
+    const fechaActualizacion = new Date().toISOString();
+    transaction.update(profileRef, {
       nombre: nombreLimpio,
-      fechaActualizacion: new Date().toISOString(),
+      fechaActualizacion,
+    });
+    if (memberRef && member?.exists()) {
+      transaction.update(memberRef, { nombre: nombreLimpio, fechaActualizacion });
+    }
     });
     await updateProfile(usuario, { displayName: nombreLimpio });
     this.invalidarCache();

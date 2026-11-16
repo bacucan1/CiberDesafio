@@ -71,14 +71,39 @@ ion-content { --background: #f7f8fc; }
 @media (max-width: 700px) {
   .auth-layout { display: block; }
   .story-panel { display: none; }
-  .form-panel { align-items: flex-start; min-height: 100dvh; padding: 28px 22px 34px; }
-  .auth-card { margin: auto; max-width: 440px; }
-  .mobile-brand { color: #252641; display: inline-flex; font-size: .76rem; margin-bottom: 40px; }
+  .form-panel {
+    align-items: stretch;
+    box-sizing: border-box;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-height: 100%;
+    min-height: 100dvh;
+    padding: max(20px, env(safe-area-inset-top)) clamp(16px, 5vw, 24px) max(24px, env(safe-area-inset-bottom));
+    width: 100%;
+  }
+  .auth-card { margin: 0 auto; max-width: 440px; min-width: 0; width: 100%; }
+  .mobile-brand { align-self: flex-start; color: #252641; display: inline-flex; flex: 0 0 auto; font-size: .76rem; margin: 0 auto clamp(20px, 5vh, 36px); }
   .mobile-brand .brand-mark { height: 34px; width: 34px; }
   .mobile-brand .brand-mark ion-icon { font-size: 19px; }
   .mobile-brand > span:last-child > span { color: #6a5cdd; }
-  .form-heading h2 { font-size: 2.15rem; }
-  .mobile-footer { color: #a0a1b1; display: block; font-size: .58rem; letter-spacing: .08em; margin: 32px 0 0; text-align: center; }
+  .form-heading .eyebrow { font-size: clamp(.58rem, 2.7vw, .68rem); overflow-wrap: anywhere; }
+  .form-heading h2 { font-size: clamp(1.9rem, 8vw, 2.3rem); overflow-wrap: anywhere; }
+  .password-heading { align-items: flex-start; flex-wrap: wrap; gap: 5px 12px; }
+  .password-heading .field-label { flex: 1 1 120px; }
+  .password-heading .text-link { flex: 0 1 auto; line-height: 1.4; max-width: 55%; text-align: right; }
+  .input-wrap { box-sizing: border-box; min-width: 0; width: 100%; }
+  .input-wrap ion-input { --padding-end: 0; --padding-start: 0; font-size: 1rem; min-width: 0; }
+  .mobile-footer { align-self: stretch; color: #a0a1b1; display: block; font-size: clamp(.55rem, 2.5vw, .65rem); letter-spacing: .06em; line-height: 1.5; margin: 24px auto 0; max-width: 440px; overflow-wrap: anywhere; text-align: center; }
+}
+@media (max-width: 380px) {
+  .password-heading { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .password-heading .text-link { max-width: 100%; text-align: left; }
+}
+@media (max-height: 520px) and (max-width: 700px) {
+  .form-panel { padding-bottom: max(16px, env(safe-area-inset-bottom)); padding-top: max(12px, env(safe-area-inset-top)); }
+  .mobile-brand { margin-bottom: 14px; }
+  .mode-switch { margin: 16px 0 12px; }
+  .privacy-note { margin-top: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }

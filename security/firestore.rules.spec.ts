@@ -5,13 +5,14 @@ import {
   initializeTestEnvironment,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { Timestamp, deleteDoc, doc, getDoc, increment, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
+import { Timestamp, collection, deleteDoc, doc, getDoc, getDocs, increment, query, runTransaction, setDoc, updateDoc, where } from 'firebase/firestore';
 
 let environment: RulesTestEnvironment;
 const grupoId = 'a'.repeat(64);
 const codigoInvitacion = 'A1B2C3D4E5F6';
 const grupoNuevoId = 'b'.repeat(64);
 const codigoNuevo = 'F6E5D4C3B2A1';
+const decisionProcesadaId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 
 beforeAll(async () => {
   environment = await initializeTestEnvironment({
@@ -27,6 +28,7 @@ beforeEach(async () => {
   await environment.withSecurityRulesDisabled(async (context) => {
     const firestore = context.firestore();
     await deleteDoc(doc(firestore, 'resultados_agregados', `${grupoId}_fraude`, 'participantes', 'estudiante-vinculado'));
+    await deleteDoc(doc(firestore, 'usuarios', 'estudiante-vinculado', 'resultados', 'phishing', 'procesadas', decisionProcesadaId));
     await deleteDoc(doc(firestore, 'grupos', grupoNuevoId));
     await deleteDoc(doc(firestore, 'codigos_vinculacion', codigoNuevo));
     for (const [collection, id] of [
@@ -86,6 +88,7 @@ beforeEach(async () => {
       fechaCreacion: Timestamp.now(),
     });
     await setDoc(doc(firestore, 'resultados_agregados', 'resultado-norte'), {
+      grupoId,
       institucion: 'Colegio Norte',
       grupo: '901-A',
     });
@@ -159,11 +162,16 @@ describe('Firestore access by role', () => {
     await assertFails(getDoc(doc(firestore, 'decisiones', 'decision-otra')));
   });
 
-  it('limits teacher results to the assigned institution', async () => {
+  it('limits teacher results to groups assigned to that teacher', async () => {
     const firestore = environment.authenticatedContext('docente-1').firestore();
 
     await assertSucceeds(getDoc(doc(firestore, 'resultados_agregados', 'resultado-norte')));
     await assertFails(getDoc(doc(firestore, 'resultados_agregados', 'resultado-sur')));
+    await assertSucceeds(getDocs(query(
+      collection(firestore, 'resultados_agregados'),
+      where('grupoId', '==', grupoId),
+    )));
+    await assertFails(getDocs(collection(firestore, 'resultados_agregados')));
     await assertFails(updateDoc(doc(firestore, 'usuarios', 'docente-1'), { rol: 'estudiante' }));
   });
 
@@ -171,6 +179,23 @@ describe('Firestore access by role', () => {
     const firestore = environment.authenticatedContext('estudiante-1').firestore();
 
     await assertFails(getDoc(doc(firestore, 'resultados_agregados', 'resultado-norte')));
+  });
+
+  it('allows only the decision owner to read an idempotency marker', async () => {
+    const ownerDb = environment.authenticatedContext('estudiante-vinculado').firestore();
+    const marker = doc(ownerDb, 'usuarios', 'estudiante-vinculado', 'resultados', 'phishing', 'procesadas', decisionProcesadaId);
+
+    await assertSucceeds(setDoc(marker, { fecha: '2026-01-01T00:00:00.000Z' }));
+    await assertSucceeds(getDoc(marker));
+    await assertFails(getDoc(doc(
+      environment.authenticatedContext('estudiante-1').firestore(),
+      'usuarios',
+      'estudiante-vinculado',
+      'resultados',
+      'phishing',
+      'procesadas',
+      decisionProcesadaId,
+    )));
   });
 
   it('allows a student to request teacher approval but not to approve themselves', async () => {

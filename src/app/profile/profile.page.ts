@@ -84,16 +84,16 @@ export class ProfilePage {
         await this.router.navigateByUrl('/login');
         return;
       }
-      this.perfil = await withTimeout(
+      const perfil = await withTimeout(
         this.auth.obtenerPerfil(),
         remainingTime(inicioCarga, TIMEOUT_CARGA_MS),
         'La información de tu perfil tardó más de 8 segundos. Revisa tu conexión e intenta cargar de nuevo.',
       );
-      if (!this.perfil) {
-        this.perfilPorCompletar = true;
-        this.nombre = this.usuario.displayName ?? '';
-        return;
-      }
+      this.perfil = perfil ?? await withTimeout(
+        this.auth.asegurarPerfilActual(),
+        remainingTime(inicioCarga, TIMEOUT_CARGA_MS),
+        'No se pudo crear tu perfil en 8 segundos. Revisa tu conexión e intenta cargar de nuevo.',
+      );
       this.nombre = this.perfil.nombre;
       this.institucionSolicitada = this.perfil.institucion ?? '';
       this.grupoSolicitado = this.perfil.grupo ?? '';

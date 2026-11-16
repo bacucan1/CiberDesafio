@@ -12,7 +12,7 @@
   <main class="teacher-shell">
     <p class="eyebrow">SEGUIMIENTO EDUCATIVO · {{ institucion || 'INSTITUCIÓN' }}</p>
     <h1>Mapa de aprendizaje</h1>
-    <p class="intro">Consulta el avance agregado de tus grupos y genera invitaciones para vincular estudiantes.</p>
+    <p class="intro">Crea grupos, comparte códigos y consulta el progreso de cada estudiante que pertenezca a tus grupos.</p>
 
     @if (error) { <ion-text color="danger"><p class="teacher-message" role="alert">{{ error }}</p></ion-text> }
     @if (mensaje) { <ion-text color="success"><p class="teacher-message success" role="status">{{ mensaje }}</p></ion-text> }
@@ -23,7 +23,7 @@
       <section class="group-tools">
         <div class="group-tools-heading">
           <div><p class="eyebrow">ACCESO A TUS GRUPOS</p><h2>Invitar estudiantes</h2></div>
-          <span class="privacy-chip"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon> Sin datos personales en el panel</span>
+          <span class="privacy-chip"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon> Sin correos; acceso solo a tus grupos</span>
         </div>
         <p>Cada código es de un solo grupo, permite hasta 30 vinculaciones y vence en 14 días. Puedes revocarlo cuando quieras.</p>
         <div class="invite-form">
@@ -66,12 +66,12 @@
 
       <section class="results-section">
         <div class="results-heading">
-          <div><p class="eyebrow">RESULTADOS ANÓNIMOS Y AGREGADOS</p><h2>Progreso del grupo</h2></div>
+          <div><p class="eyebrow">RESULTADOS AGREGADOS</p><h2>Progreso del grupo</h2></div>
           <div class="results-controls">
             @if (grupos.length) {
               <ion-item class="group-picker">
                 <ion-label position="stacked">Grupo</ion-label>
-                <ion-select [(ngModel)]="grupoSeleccionado" aria-label="Seleccionar grupo">
+                <ion-select [(ngModel)]="grupoSeleccionado" (ionChange)="cambiarGrupo($event.detail.value)" aria-label="Seleccionar grupo">
                   @for (grupo of grupos; track claveGrupo(grupo)) {
                     <ion-select-option [value]="claveGrupo(grupo)">{{ grupo.grupo }}@if (grupo.grado) { · {{ grupo.grado }}.º }</ion-select-option>
                   }
@@ -112,9 +112,41 @@
             </ion-card>
             <ion-card class="insight-card">
               <ion-card-header><ion-badge color="success">PRIVACIDAD DEL ESTUDIANTE</ion-badge><ion-card-title>Datos protegidos</ion-card-title></ion-card-header>
-              <ion-card-content><p>El progreso de cada ejercicio se guarda de forma privada en la cuenta del estudiante. Aquí solo aparecen métricas anónimas y agregadas por grupo; los cambios se sincronizan automáticamente desde Firebase.</p></ion-card-content>
+              <ion-card-content><p>Solo los docentes asignados a este grupo pueden ver nombres y progreso individual. No se muestran correos; los resultados agregados se mantienen como referencia histórica.</p></ion-card-content>
             </ion-card>
           </section>
+
+        }
+      </section>
+
+      <section class="students-section" aria-labelledby="students-title">
+        <div class="students-heading">
+          <div><p class="eyebrow">SEGUIMIENTO POR ESTUDIANTE</p><h2 id="students-title">Estudiantes del grupo</h2></div>
+          <span class="privacy-chip"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon> Visible solo a docentes del grupo</span>
+        </div>
+        @if (cargandoEstudiantes) {
+          <p role="status">Cargando estudiantes…</p>
+        } @else if (!grupos.length) {
+          <div class="empty-state"><ion-icon name="people" aria-hidden="true"></ion-icon><h3>Crea un grupo para comenzar</h3><p>Cuando un estudiante use un código de invitación, aparecerá aquí.</p></div>
+        } @else if (!estudiantes.length) {
+          <div class="empty-state"><ion-icon name="people" aria-hidden="true"></ion-icon><h3>Aún no hay estudiantes vinculados</h3><p>Comparte el código del grupo seleccionado para que tus estudiantes se unan.</p></div>
+        } @else {
+          <div class="student-list">
+            @for (estudiante of estudiantes; track estudiante.uid) {
+              <article class="student-row">
+                <div class="student-name">
+                  <strong>{{ estudiante.nombre }}</strong>
+                  <small>Vinculado {{ estudiante.fechaVinculacion | date:'mediumDate' }}</small>
+                </div>
+                <div class="student-metric"><span>Misiones</span><strong>{{ estudiante.misionesCompletadas }}</strong></div>
+                <div class="student-metric"><span>XP</span><strong>{{ estudiante.xp }}</strong></div>
+                <div class="student-metric"><span>Aciertos</span><strong>{{ estudiante.aciertos }} / {{ estudiante.decisiones }}</strong></div>
+                <ion-button fill="outline" color="danger" [disabled]="actualizando" (click)="quitarEstudiante(estudiante)">
+                  Quitar del grupo
+                </ion-button>
+              </article>
+            }
+          </div>
         }
       </section>
     }

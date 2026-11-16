@@ -6,6 +6,8 @@
 - Las reglas impiden que un usuario cambie su `rol`, su `uid` o (si es docente) su `institucion`.
 - La API lee el rol desde Firestore con el `uid` del token verificado; nada que envíe el cliente lo cambia.
 - Los guards de Angular solo mejoran la experiencia; la seguridad real la imponen `firestore.rules` y la API.
+- El roster vive en `grupos/{grupoId}/estudiantes/{uid}`. El estudiante puede escribir su propio resumen de progreso y los docentes asignados al grupo pueden leerlo; no se guarda ni se muestra el correo.
+- El docente puede quitar a un estudiante de su grupo. La cuenta y el progreso personal del estudiante permanecen, y los agregados históricos del grupo no se recalculan.
 
 ## Cómo crear un código docente (administrador)
 1. Firebase Console → Firestore → colección `codigos_invitacion`.
@@ -28,7 +30,6 @@
 | Guard de rutas | `npm test` (ng test) | 8 pruebas |
 | Reglas de Firestore (emulador) | `cd tests/rules && npm install && npm test` (requiere Java) | 27 pruebas (no ejecutadas aún) |
 
-## Decisiones pendientes con el equipo
-- **Institución y grupo del estudiante:** hoy se guardan vacíos (`institucion: ''`). Sin esto, los resultados agregados no se pueden asociar a un docente. Lo más seguro es un código de grupo/institución que entregue el docente (como el de invitación). Es decisión conjunta con Andrés.
-- **Modelo de `resultados_agregados`:** el docente solo puede leer con consulta filtrada por `where('institucion','==', <la suya>)`.
-- **Puntuación en el cliente:** `correcta` y `puntuacion` los envía el navegador; un estudiante podría falsearlos. Validarlos en el servidor contra los escenarios es un siguiente paso.
+## Límites conocidos
+- **Alta de estudiantes:** el vínculo al grupo se hace mediante el código de invitación. La búsqueda por correo y la importación de listas requieren un servicio administrativo seguro para localizar cuentas; no se deben resolver permitiendo a docentes consultar perfiles globales.
+- **Puntuación en el cliente:** la lógica de juego se ejecuta en el navegador; las métricas son educativas y no deben usarse como calificación verificada.
