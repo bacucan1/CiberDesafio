@@ -127,6 +127,26 @@
             </ion-card>
           </section>
 
+          <section class="improvement-section" aria-labelledby="group-improvement-title">
+            <div class="improvement-section-heading">
+              <div><p class="eyebrow">ORIENTACIÓN AUTOMÁTICA · DATOS AGREGADOS</p><h2 id="group-improvement-title">Puntos de mejora del grupo</h2></div>
+              <span class="privacy-chip"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon> Sin respuestas individuales</span>
+            </div>
+            <p class="improvement-explanation">Se priorizan los ejes con menor porcentaje de aciertos y se sugieren actividades para reforzarlos. Las recomendaciones se calculan localmente con las métricas del grupo.</p>
+            <div class="improvement-cards">
+              @for (punto of puntosMejoraGrupo; track punto.eje; let index = $index) {
+                <article class="improvement-card" [class.improvement-card-priority]="index === 0">
+                  <div class="improvement-card-heading">
+                    <div><span>{{ index === 0 ? 'PRIORIDAD DE REFUERZO' : punto.nivel }}</span><h3>{{ punto.eje }}</h3></div>
+                    <strong>{{ punto.porcentajeAciertos }}%</strong>
+                  </div>
+                  <p>{{ punto.recomendacion }}</p>
+                  <small>Actividad sugerida: {{ punto.actividad }}</small>
+                  <small>{{ punto.totalAciertos }} de {{ punto.totalDecisiones }} decisiones acertadas</small>
+                </article>
+              }
+            </div>
+          </section>
         }
       </section>
 

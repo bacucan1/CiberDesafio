@@ -19,6 +19,7 @@ import {
   where,
 } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
+import type { EjeRiesgo } from '../models/domain.models';
 import { AuthService } from './auth.service';
 import { firebaseApp } from '../firebase.config';
 
@@ -44,7 +45,7 @@ export interface GroupResults {
   grupo: string;
   grado?: number;
   institucion: string;
-  eje: string;
+  eje: EjeRiesgo;
   porcentajeAciertos: number;
   estudiantes: number;
   fechaCalculo: string;
@@ -447,7 +448,7 @@ export class InstitutionalService {
         grupo: data['grupo'] as string,
         ...(typeof data['grado'] === 'number' ? { grado: data['grado'] } : {}),
         institucion: data['institucion'] as string,
-        eje: data['eje'] as string,
+        eje: data['eje'] as EjeRiesgo,
         porcentajeAciertos: data['porcentajeAciertos'] as number,
         estudiantes: data['estudiantes'] as number,
         fechaCalculo: data['fechaCalculo'] as string,

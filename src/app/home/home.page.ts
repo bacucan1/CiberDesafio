@@ -3,11 +3,13 @@ import { RouterLink } from '@angular/router';
 import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonProgressBar, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowForward, cart, chatbubbles, checkmarkCircle, copy, desktop, documentLock, flame, gift, headset, helpCircle, key, location, lockClosed, logOut, medal, megaphone, people, personAdd, personCircle, phonePortrait, school, shieldCheckmark, sparkles, star, trophy, videocam, volumeHigh, volumeMute, warning, wifi } from 'ionicons/icons';
-import { Decision, Escenario, NodoDecision, OpcionDecision } from '../core/models/domain.models';
+import { Decision, EjeRiesgo, Escenario, NodoDecision, OpcionDecision } from '../core/models/domain.models';
 import { AuthService } from '../core/services/auth.service';
 import { SimulationService } from '../core/services/simulation.service';
 import { DecisionQueueService } from '../core/services/decision-queue.service';
 import { DecisionService } from '../core/services/decision.service';
+import { crearPuntosMejora, ImprovementInsight } from '../core/services/improvement-insights';
+import { ResultsService } from '../core/services/results.service';
 import { ScenarioService } from '../core/services/scenario.service';
 import { LanguageSelectorComponent } from '../core/components/language-selector/language-selector.component';
 import { AiChallengeModalComponent } from '../core/components/ai-challenge-modal/ai-challenge-modal.component';
@@ -54,6 +56,7 @@ export class HomePage {
   private readonly simulation = inject(SimulationService);
   private readonly decisionQueue = inject(DecisionQueueService);
   private readonly decisionService = inject(DecisionService);
+  private readonly resultsService = inject(ResultsService);
   private readonly scenarioCatalog = inject(ScenarioService);
   readonly pasosTutorial: TutorialStep[] = [
     {
@@ -131,6 +134,9 @@ export class HomePage {
   desplazamientoCarta = 0;
   arrastrandoCarta = false;
   errorPersistencia = '';
+  puntosMejora: ImprovementInsight[] = [];
+  cargandoPuntosMejora = false;
+  errorPuntosMejora = '';
   private aciertosConocidos = 0;
   private inicioGesto?: number;
   private gestoConfirmado = false;
@@ -288,7 +294,38 @@ export class HomePage {
     } finally {
       this.guardandoDecision = false;
       this.changeDetector.markForCheck();
+      void this.cargarPuntosMejora();
     }
+  }
+
+  async cargarPuntosMejora(): Promise<void> {
+    const uid = this.auth.usuarioActual()?.uid;
+    if (!uid || this.cargandoPuntosMejora) return;
+
+    this.cargandoPuntosMejora = true;
+    this.errorPuntosMejora = '';
+    try {
+      const resultados = await this.resultsService.obtenerResultadosEstudiante(uid);
+      this.puntosMejora = crearPuntosMejora(resultados.map((resultado) => ({
+        eje: resultado.eje,
+        totalAciertos: resultado.aciertos,
+        totalDecisiones: resultado.decisiones,
+      })));
+    } catch (error: unknown) {
+      console.error('No se pudieron cargar los puntos de mejora del estudiante.', error);
+      this.errorPuntosMejora = 'No se pudieron cargar tus recomendaciones. Intenta actualizar la página.';
+    } finally {
+      this.cargandoPuntosMejora = false;
+      this.changeDetector.markForCheck();
+    }
+  }
+
+  practicarEje(eje: EjeRiesgo): void {
+    const ruta = this.ejercicios.find((ejercicio) => ejercicio.eje === eje);
+    if (!ruta) return;
+    if (this.escenario.id === ruta.id) this.reiniciar();
+    else this.seleccionarRuta(ruta);
+    document.querySelector('.card-deck')?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }
 
   private async guardarDecisionEnCola(decision: Decision): Promise<void> {

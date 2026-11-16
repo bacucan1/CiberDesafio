@@ -580,6 +580,10 @@ service cloud.firestore {
         allow get: if (esEstudiante()
             && request.auth.uid == uid
             && perfilActual().get('grupoId', '') == id)
+          || (esEstudiante()
+            && request.auth.uid == uid
+            && perfilActual().get('institucion', '') == ''
+            && !exists(/databases/$(database)/documents/grupos/$(id)/estudiantes/$(uid)))
           || docenteDelGrupo(id);
         allow list: if docenteDelGrupo(id);
         allow create: if esEstudiante()

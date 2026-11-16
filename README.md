@@ -55,6 +55,8 @@ Estudiantes de 9.º a 11.º de instituciones educativas colombianas, con una exp
 
 El docente dispone de un panel con resultados agregados por grupo y tema para identificar qué habilidades necesitan mayor refuerzo.
 
+El estudiante también ve sus resultados y recomendaciones por eje, ordenados desde la prioridad de práctica más alta, con sugerencias concretas y un acceso directo a una misión relacionada. El panel docente muestra orientaciones y actividades de refuerzo calculadas con métricas agregadas del grupo, sin exponer respuestas individuales. Estas recomendaciones son adaptativas y basadas en reglas locales; no se presentan como texto generado por un modelo de IA ni envían resultados a servicios externos.
+
 ## Arquitectura
 
 ```text

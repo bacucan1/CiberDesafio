@@ -55,6 +55,20 @@ ion-card-title { color: #241b3b; font-size: 1.42rem; margin-top: 10px; }
 .bar-track { background: #eee8f5; border-radius: 9px; height: 9px; overflow: hidden; }
 .bar-track span { background: linear-gradient(90deg, #7453c8, #b18be9); border-radius: inherit; display: block; height: 100%; }
 .insight-card p { color: #6f6484; font-size: .85rem; line-height: 1.6; }
+.improvement-section { margin-top: 24px; }
+.improvement-section-heading { align-items: center; display: flex; gap: 18px; justify-content: space-between; }
+.improvement-section-heading h2 { color: #eee8d8; font-size: 1.4rem; margin: 0; }
+.improvement-section-heading .eyebrow { color: #67e6c0; }
+.improvement-explanation { color: var(--muted); font-size: .82rem; line-height: 1.55; margin: 9px 0 15px; max-width: 760px; }
+.improvement-cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.improvement-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; color: #241b3b; padding: 17px; }
+.improvement-card-priority { border-color: #b7a5ea; box-shadow: inset 3px 0 #7453c8; }
+.improvement-card-heading { align-items: center; display: flex; justify-content: space-between; }
+.improvement-card-heading span { color: #6f6484; font-size: .59rem; font-weight: 850; letter-spacing: .08em; }
+.improvement-card-heading h3 { font-size: .98rem; margin: 4px 0 0; text-transform: capitalize; }
+.improvement-card-heading > strong { color: #5c4dbd; font-size: 1.25rem; }
+.improvement-card p { color: #6f6484; font-size: .77rem; line-height: 1.5; margin: 13px 0 8px; }
+.improvement-card small { color: #6f6484; display: block; font-size: .68rem; line-height: 1.45; margin-top: 7px; }
 .empty-state { align-items: center; background: white; border: 1px dashed #d8cfe5; border-radius: 13px; color: #6f6484; display: flex; flex-direction: column; padding: 42px 20px; text-align: center; }
 .empty-state > ion-icon { color: #7453c8; font-size: 30px; }
 .empty-state h3 { color: #241b3b; font-size: 1.1rem; margin: 14px 0 6px; }
@@ -75,6 +89,7 @@ ion-card-title { color: #241b3b; font-size: 1.42rem; margin-top: 10px; }
   .teacher-shell { padding: 34px 16px 60px; }
   .group-tools-heading, .results-heading { align-items: flex-start; flex-direction: column; }
   .students-heading { align-items: flex-start; flex-direction: column; }
+  .improvement-section-heading { align-items: flex-start; flex-direction: column; }
   .results-controls { align-items: stretch; width: 100%; }
   .privacy-chip { white-space: normal; }
   .invite-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }

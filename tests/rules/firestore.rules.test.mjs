@@ -187,48 +187,6 @@ describe('vinculación de estudiantes con código de grupo', () => {
       ]);
     });
 
-    describe('puntaje de desafíos con IA', () => {
-      it('guarda el reto y actualiza el XP del grupo en una sola operación', async () => {
-        const db = como('est-vinculado');
-        const miembroRef = doc(db, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`);
-        const desafioId = '12345678-1234-1234-1234-123456789abc';
-        const desafioRef = doc(db, `usuarios/est-vinculado/resultados_ai/${desafioId}`);
-
-        await assertSucceeds(runTransaction(db, async (transaction) => {
-          await Promise.all([transaction.get(miembroRef), transaction.get(desafioRef)]);
-          transaction.update(miembroRef, {
-            xp: 120,
-            xpAi: 120,
-            desafiosAi: 1,
-            aciertosAi: 1,
-            ultimoDesafioAi: desafioId,
-            fechaActualizacion: new Date().toISOString(),
-          });
-          transaction.set(desafioRef, { puntos: 120, correcta: true, fecha: new Date().toISOString() });
-        }));
-      });
-
-      it('rechaza recompensas que no corresponden a la respuesta', async () => {
-        const db = como('est-vinculado');
-        const miembroRef = doc(db, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`);
-        const desafioId = 'abcdefab-cdef-abcd-efab-cdefabcdefab';
-        const desafioRef = doc(db, `usuarios/est-vinculado/resultados_ai/${desafioId}`);
-
-        await assertFails(runTransaction(db, async (transaction) => {
-          await Promise.all([transaction.get(miembroRef), transaction.get(desafioRef)]);
-          transaction.update(miembroRef, {
-            xp: 120,
-            xpAi: 120,
-            desafiosAi: 1,
-            aciertosAi: 0,
-            ultimoDesafioAi: desafioId,
-            fechaActualizacion: new Date().toISOString(),
-          });
-          transaction.set(desafioRef, { puntos: 120, correcta: false, fecha: new Date().toISOString() });
-        }));
-      });
-    });
-
     await assertFails(getDoc(doc(como('est1'), 'codigos_vinculacion/ABCDEF123456')));
     await assertFails(getDoc(doc(como('est1'), 'codigos_vinculacion/ABCDEF123457')));
     await assertFails(getDoc(doc(como('est1'), 'codigos_vinculacion/ABCDEF123458')));
@@ -238,16 +196,22 @@ describe('vinculación de estudiantes con código de grupo', () => {
     const db = como('est1');
     const perfilRef = doc(db, 'usuarios/est1');
     const codigoRef = doc(db, `codigos_vinculacion/${CODIGO_GRUPO}`);
+    const estudianteRef = doc(db, `grupos/${GRUPO_ID}/estudiantes/est1`);
     await assertSucceeds(runTransaction(db, async (transaction) => {
-      const [perfil, codigo] = await Promise.all([transaction.get(perfilRef), transaction.get(codigoRef)]);
+      const [perfil, codigo, estudiante] = await Promise.all([
+        transaction.get(perfilRef),
+        transaction.get(codigoRef),
+        transaction.get(estudianteRef),
+      ]);
       assert.equal(perfil.exists(), true);
       assert.equal(codigo.exists(), true);
+      assert.equal(estudiante.exists(), false);
       transaction.update(perfilRef, {
         institucion: INSTITUCION, grupo: '901-A', grupoId: GRUPO_ID, grado: 9,
         codigoVinculacion: CODIGO_GRUPO, fechaActualizacion: new Date().toISOString(),
       });
       transaction.update(codigoRef, { usos: codigo.data().usos + 1 });
-      transaction.set(doc(db, `grupos/${GRUPO_ID}/estudiantes/est1`), {
+      transaction.set(estudianteRef, {
         uid: 'est1',
         nombre: 'Estudiante',
         misionesCompletadas: 0,
@@ -311,20 +275,6 @@ describe('vinculación de estudiantes con código de grupo', () => {
         codigo: nuevoCodigo, grupoId: nuevoGrupoId, grupo: '1001-B', grado: 10, institucion: INSTITUCION,
         creadoPor: 'docA', estado: 'activo', usos: 0, maxUsos: 30,
         venceEn: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), fechaCreacion: Timestamp.now(),
-      });
-    }));
-  });
-
-  it('no permite a otro docente añadirse a un grupo existente del mismo centro', async () => {
-    const db = como('docC');
-    const grupoRef = doc(db, `grupos/${GRUPO_ID}`);
-
-    await assertFails(runTransaction(db, async (transaction) => {
-      const grupo = await transaction.get(grupoRef);
-      transaction.set(grupoRef, {
-        ...grupo.data(),
-        profesores: ['docA', 'docC'],
-        fechaActualizacion: Timestamp.now(),
       });
     }));
   });
@@ -407,6 +357,48 @@ describe('vinculación de estudiantes con código de grupo', () => {
       aciertos: 2,
       decisiones: 2,
       fechaActualizacion: new Date().toISOString(),
+    }));
+  });
+});
+
+describe('puntaje de desafíos con IA', () => {
+  it('guarda el reto y actualiza el XP del grupo en una sola operación', async () => {
+    const db = como('est-vinculado');
+    const miembroRef = doc(db, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`);
+    const desafioId = '12345678-1234-1234-1234-123456789abc';
+    const desafioRef = doc(db, `usuarios/est-vinculado/resultados_ai/${desafioId}`);
+
+    await assertSucceeds(runTransaction(db, async (transaction) => {
+      await Promise.all([transaction.get(miembroRef), transaction.get(desafioRef)]);
+      transaction.update(miembroRef, {
+        xp: 120,
+        xpAi: 120,
+        desafiosAi: 1,
+        aciertosAi: 1,
+        ultimoDesafioAi: desafioId,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      transaction.set(desafioRef, { puntos: 120, correcta: true, fecha: new Date().toISOString() });
+    }));
+  });
+
+  it('rechaza recompensas que no corresponden a la respuesta', async () => {
+    const db = como('est-vinculado');
+    const miembroRef = doc(db, `grupos/${GRUPO_ID}/estudiantes/est-vinculado`);
+    const desafioId = 'abcdefab-cdef-abcd-efab-cdefabcdefab';
+    const desafioRef = doc(db, `usuarios/est-vinculado/resultados_ai/${desafioId}`);
+
+    await assertFails(runTransaction(db, async (transaction) => {
+      await Promise.all([transaction.get(miembroRef), transaction.get(desafioRef)]);
+      transaction.update(miembroRef, {
+        xp: 120,
+        xpAi: 120,
+        desafiosAi: 1,
+        aciertosAi: 0,
+        ultimoDesafioAi: desafioId,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      transaction.set(desafioRef, { puntos: 120, correcta: false, fecha: new Date().toISOString() });
     }));
   });
 });

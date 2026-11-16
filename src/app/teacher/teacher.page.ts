@@ -8,6 +8,7 @@ import { barChart, logOut, people, shieldCheckmark } from 'ionicons/icons';
 import type { Unsubscribe } from 'firebase/firestore';
 import { AuthService } from '../core/services/auth.service';
 import { GroupInvite, GroupResults, GroupStudentProgress, InstitutionalService, TeacherGroup } from '../core/services/institutional.service';
+import { crearPuntosMejora, ImprovementInsight } from '../core/services/improvement-insights';
 import { OperationTimeoutError, remainingTime, withTimeout } from '../core/utils/async.utils';
 import { LanguageSelectorComponent } from '../core/components/language-selector/language-selector.component';
 import { TranslatePipe } from '../core/pipes/translate.pipe';
@@ -344,6 +345,14 @@ export class TeacherPage implements OnDestroy, OnInit {
   get temaPrioritario(): string {
     const prioridad = [...this.resultadosDelGrupo].sort((a, b) => a.porcentajeAciertos - b.porcentajeAciertos)[0];
     return prioridad?.eje ?? 'Sin datos';
+  }
+
+  get puntosMejoraGrupo(): ImprovementInsight[] {
+    return crearPuntosMejora(this.resultadosDelGrupo.map((resultado) => ({
+      eje: resultado.eje,
+      totalAciertos: resultado.totalAciertos,
+      totalDecisiones: resultado.totalDecisiones,
+    })));
   }
 
   claveGrupo(grupo: TeacherGroup): string {

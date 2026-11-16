@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { DecisionQueueService } from '../core/services/decision-queue.service';
 import { DecisionService } from '../core/services/decision.service';
+import { ResultsService } from '../core/services/results.service';
 import { HomePage } from './home.page';
 
 describe('HomePage', () => {
@@ -16,6 +17,7 @@ describe('HomePage', () => {
     cantidadPendiente: ReturnType<typeof vi.fn>;
   };
   let decisionService: { guardarDesafioAi: ReturnType<typeof vi.fn> };
+  let resultsService: { obtenerResultadosEstudiante: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     window.localStorage.removeItem(onboardingStorageKey);
@@ -26,6 +28,7 @@ describe('HomePage', () => {
       cantidadPendiente: vi.fn().mockReturnValue(0),
     };
     decisionService = { guardarDesafioAi: vi.fn().mockResolvedValue(true) };
+    resultsService = { obtenerResultadosEstudiante: vi.fn().mockResolvedValue([]) };
     await TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
@@ -38,6 +41,7 @@ describe('HomePage', () => {
           },
         },
         { provide: DecisionService, useValue: decisionService },
+        { provide: ResultsService, useValue: resultsService },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(HomePage);
@@ -140,5 +144,24 @@ describe('HomePage', () => {
 
     expect(component.puntos).toBe(0);
     expect(component.aiAwardError).toBe('Sin conexión');
+  });
+
+  it('muestra recomendaciones calculadas desde sus resultados por eje', async () => {
+    resultsService.obtenerResultadosEstudiante.mockResolvedValue([
+      { escenarioId: 'reto-fraude-1', eje: 'fraude', aciertos: 1, decisiones: 4 },
+      { escenarioId: 'reto-higiene-1', eje: 'higiene', aciertos: 3, decisiones: 4 },
+    ]);
+
+    await component.cargarPuntosMejora();
+
+    expect(component.puntosMejora[0].eje).toBe('fraude');
+    expect(component.puntosMejora[0].porcentajeAciertos).toBe(25);
+    expect(component.puntosMejora[0].recomendacion).toContain('dominio');
+  });
+
+  it('selecciona una misión del eje recomendado para practicarlo', () => {
+    component.practicarEje('higiene');
+
+    expect(component.escenario.eje).toBe('higiene');
   });
 });
