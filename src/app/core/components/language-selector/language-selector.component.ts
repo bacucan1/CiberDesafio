@@ -27,21 +27,22 @@ import { TranslationService } from '../../services/translation.service';
     .lang-selector-group {
       display: inline-flex;
       align-items: center;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 999px;
+      background: rgba(16, 13, 27, 0.92);
+      border: 1px solid rgba(214, 189, 116, 0.42);
+      border-radius: 2px;
       padding: 2px;
       gap: 2px;
     }
     .lang-pill-btn {
       background: transparent;
       border: none;
-      border-radius: 999px;
-      color: rgba(255, 255, 255, 0.7);
+      border-radius: 1px;
+      color: #c0b79e;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      font-family: Georgia, 'Times New Roman', serif;
       font-size: 0.7rem;
       font-weight: 700;
       padding: 4px 8px;
@@ -50,13 +51,13 @@ import { TranslationService } from '../../services/translation.service';
       transition: all 0.15s ease-in-out;
     }
     .lang-pill-btn:hover {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.12);
+      color: #f3e7c1;
+      background: rgba(214, 189, 116, 0.12);
     }
     .lang-pill-btn.active {
-      background: #7453c8;
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(116, 83, 200, 0.4);
+      background: linear-gradient(135deg, #ead89a, #c59a4a);
+      color: #201506;
+      box-shadow: 0 2px 6px rgba(214, 189, 116, 0.25);
     }
     .flag {
       font-size: 0.85rem;

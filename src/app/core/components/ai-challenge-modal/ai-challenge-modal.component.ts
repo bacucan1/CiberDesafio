@@ -161,7 +161,10 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
     .ai-modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(4, 6, 18, 0.82);
+      background: rgba(4, 6, 18, 0.9);
+      background-image: radial-gradient(rgba(234,216,154,.55) 1px, transparent 1px), radial-gradient(rgba(103,230,192,.35) 1px, transparent 1px);
+      background-position: 0 0, 43px 37px;
+      background-size: 87px 74px, 121px 101px;
       backdrop-filter: blur(8px);
       z-index: 12000;
       display: flex;
@@ -171,10 +174,10 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       overflow-y: auto;
     }
     .ai-modal-container {
-      background: #111427;
-      border: 1px solid rgba(136, 117, 246, 0.35);
-      border-radius: 18px;
-      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7), 0 0 30px rgba(103, 230, 192, 0.15);
+      background: linear-gradient(145deg, rgba(23,19,32,.99), rgba(16,19,43,.99));
+      border: 3px double rgba(214,189,116,.68);
+      border-radius: 2px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7), 0 0 30px rgba(214, 189, 116, 0.12);
       color: #eee8d8;
       max-width: 760px;
       width: 100%;
@@ -189,27 +192,29 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(214, 189, 116, 0.24);
       padding-bottom: 14px;
     }
     .ai-chip {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(103, 230, 192, 0.15);
-      color: #67e6c0;
+      background: rgba(214, 189, 116, 0.12);
+      border: 1px solid rgba(214,189,116,.35);
+      color: #ffd658;
       font-size: 0.65rem;
       font-weight: 800;
       letter-spacing: 0.1em;
       padding: 4px 10px;
-      border-radius: 999px;
+      border-radius: 0;
       margin-bottom: 6px;
     }
     .ai-modal-header h2 {
+      font-family: Georgia, 'Times New Roman', serif;
       font-size: clamp(1.2rem, 3.5vw, 1.65rem);
-      color: #fff;
+      color: #f3e7c1;
       margin: 0 0 4px;
-      font-weight: 800;
+      font-weight: 500;
     }
     .subtitle {
       color: #a49db8;
@@ -219,7 +224,7 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
     .close-btn {
       background: transparent;
       border: none;
-      color: #a49db8;
+      color: #d6bd74;
       font-size: 1.8rem;
       cursor: pointer;
       line-height: 1;
@@ -227,7 +232,7 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       transition: color 0.15s;
     }
     .close-btn:hover {
-      color: #ff6b81;
+      color: #ff9a91;
     }
     .ai-controls-bar {
       display: flex;
@@ -235,30 +240,31 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(214,189,116,.07);
+      border: 1px solid rgba(214,189,116,.2);
       padding: 10px 14px;
-      border-radius: 10px;
+      border-radius: 2px;
     }
     .difficulty-picker {
       display: flex;
       align-items: center;
       gap: 8px;
       font-size: 0.8rem;
-      color: #d1c8ea;
+      color: #ead89a;
     }
     .difficulty-picker select {
-      background: #1c203b;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 6px;
-      color: #fff;
+      background: #0e0d18;
+      border: 1px solid rgba(214,189,116,.38);
+      border-radius: 2px;
+      color: #f3e7c1;
       font-size: 0.78rem;
       padding: 6px 10px;
     }
     .gen-btn {
-      background: #7453c8;
+      background: linear-gradient(135deg,#ead89a,#c59a4a);
       border: none;
-      border-radius: 8px;
-      color: #fff;
+      border-radius: 2px;
+      color: #201506;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -269,7 +275,7 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       transition: background 0.15s;
     }
     .gen-btn:hover {
-      background: #8764e0;
+      background: #ffd658;
     }
     .meta-row {
       display: flex;
@@ -281,57 +287,60 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       font-size: 0.7rem;
       font-weight: 700;
       padding: 4px 10px;
-      border-radius: 6px;
+      border-radius: 0;
       display: inline-flex;
       align-items: center;
       gap: 5px;
     }
-    .threat-tag.baja { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
-    .threat-tag.media { background: rgba(241, 196, 15, 0.2); color: #f1c40f; }
-    .threat-tag.alta, .threat-tag.crítica { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
-    .vector-tag { background: rgba(116, 83, 200, 0.2); color: #c4b0f9; }
-    .mitre-tag { background: rgba(103, 230, 192, 0.15); color: #67e6c0; font-family: monospace; }
+    .threat-tag.baja { background: rgba(103,230,192,.12); color: #83e3bd; }
+    .threat-tag.media { background: rgba(214,189,116,.13); color: #ffd658; }
+    .threat-tag.alta, .threat-tag.crítica { background: rgba(255,115,95,.12); color: #ff9a91; }
+    .vector-tag { background: rgba(214,189,116,.1); color: #ead89a; }
+    .mitre-tag { background: rgba(103, 230, 192, 0.1); color: #83e3bd; font-family: monospace; }
     
     .narrative-box {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
+      background: #211806;
+      border: 1px solid rgba(214,189,116,.3);
+      border-radius: 2px;
       padding: 16px;
       margin-bottom: 16px;
     }
     .narrative-box h3 {
       font-size: 1.15rem;
-      color: #f7d277;
+      color: #ffd658;
+      font-family: Georgia, 'Times New Roman', serif;
       margin: 0 0 10px;
     }
     .narrative-box .desc {
       font-size: 0.88rem;
       line-height: 1.6;
-      color: #dcd8ea;
+      color: #c3b58f;
       margin: 0 0 14px;
     }
     .clue-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
-      background: rgba(0, 0, 0, 0.25);
-      border-radius: 8px;
+      background: rgba(9,10,24,.55);
+      border: 1px solid rgba(214,189,116,.18);
+      border-radius: 2px;
       padding: 12px;
     }
     .clue-item {
       font-size: 0.75rem;
-      color: #a49db8;
+      color: #b1a891;
     }
     .clue-item strong {
       display: block;
-      color: #beb6db;
+      color: #ead89a;
       margin-bottom: 2px;
     }
     .clue-item code {
-      background: #1e1933;
+      background: #0e0d18;
+      border: 1px solid rgba(214,189,116,.22);
       padding: 2px 6px;
       border-radius: 4px;
-      color: #67e6c0;
+      color: #83e3bd;
       font-size: 0.72rem;
       word-break: break-all;
     }
@@ -341,7 +350,8 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
     
     .options-container h4 {
       font-size: 0.95rem;
-      color: #fff;
+      color: #f3e7c1;
+      font-family: Georgia, 'Times New Roman', serif;
       margin: 0 0 12px;
     }
     .options-list {
@@ -350,9 +360,9 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       gap: 10px;
     }
     .option-card {
-      background: #1b1f3b;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 10px;
+      background: #171320;
+      border: 1px solid rgba(214,189,116,.28);
+      border-radius: 2px;
       padding: 12px 16px;
       display: flex;
       align-items: flex-start;
@@ -363,18 +373,18 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       transition: all 0.15s ease-in-out;
     }
     .option-card:hover {
-      background: #252b52;
-      border-color: #8875f6;
+      background: #211806;
+      border-color: #ffd658;
       transform: translateY(-1px);
     }
     .opt-index {
-      background: #7453c8;
-      color: #fff;
+      background: linear-gradient(135deg,#ead89a,#c59a4a);
+      color: #201506;
       font-weight: 800;
       font-size: 0.75rem;
       height: 24px;
       width: 24px;
-      border-radius: 50%;
+      border-radius: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -386,17 +396,17 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
     }
 
     .feedback-container {
-      border-radius: 12px;
+      border-radius: 2px;
       padding: 18px;
       animation: fadeIn 0.25s ease-out;
     }
     .feedback-container.success {
-      background: rgba(46, 204, 113, 0.12);
-      border: 1px solid rgba(46, 204, 113, 0.4);
+      background: rgba(103,230,192,.09);
+      border: 1px solid rgba(103,230,192,.35);
     }
     .feedback-container.danger {
-      background: rgba(231, 76, 60, 0.12);
-      border: 1px solid rgba(231, 76, 60, 0.4);
+      background: rgba(255,115,95,.09);
+      border: 1px solid rgba(255,115,95,.35);
     }
     .feedback-header {
       display: flex;
@@ -408,33 +418,35 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       font-size: 2rem;
       flex-shrink: 0;
     }
-    .feedback-container.success ion-icon { color: #2ecc71; }
-    .feedback-container.danger ion-icon { color: #e74c3c; }
+    .feedback-container.success ion-icon { color: #83e3bd; }
+    .feedback-container.danger ion-icon { color: #ff9a91; }
     .feedback-header h4 {
       font-size: 1.1rem;
       margin: 0 0 4px;
-      color: #fff;
+      color: #f3e7c1;
+      font-family: Georgia, 'Times New Roman', serif;
     }
     .consequence {
       font-size: 0.85rem;
-      color: #d1c8ea;
+      color: #c3b58f;
       margin: 0;
       line-height: 1.45;
     }
     .diagnostic-body {
-      background: rgba(0, 0, 0, 0.25);
-      border-radius: 8px;
+      background: rgba(9,10,24,.55);
+      border: 1px solid rgba(214,189,116,.2);
+      border-radius: 2px;
       padding: 14px;
       margin-bottom: 16px;
       font-size: 0.82rem;
       line-height: 1.55;
     }
     .mitre-box {
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-top: 1px solid rgba(214,189,116,.22);
       padding-top: 10px;
       margin-top: 10px;
       font-size: 0.78rem;
-      color: #a49db8;
+      color: #b1a891;
     }
     .mitre-box p {
       margin: 4px 0;
@@ -445,7 +457,7 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       align-items: center;
       gap: 8px;
       font-size: 0.85rem;
-      color: #67e6c0;
+      color: #83e3bd;
     }
     .feedback-actions {
       display: flex;
@@ -453,10 +465,10 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       flex-wrap: wrap;
     }
     .action-btn-primary {
-      background: #287f72;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
+      background: linear-gradient(135deg,#ead89a,#c59a4a);
+      color: #201506;
+      border: 2px double #ffe8a2;
+      border-radius: 2px;
       padding: 10px 18px;
       font-size: 0.82rem;
       font-weight: 700;
@@ -465,17 +477,21 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       align-items: center;
       gap: 6px;
     }
+    .action-btn-primary:focus-visible, .action-btn-secondary:focus-visible, .gen-btn:focus-visible, .option-card:focus-visible {
+      outline: 3px solid #67e6c0;
+      outline-offset: 3px;
+    }
     .action-btn-secondary {
-      background: rgba(255, 255, 255, 0.1);
-      color: #eee8d8;
-      border: none;
-      border-radius: 8px;
+      background: rgba(214,189,116,.08);
+      color: #ead89a;
+      border: 1px solid rgba(214,189,116,.35);
+      border-radius: 2px;
       padding: 10px 16px;
       font-size: 0.82rem;
       cursor: pointer;
     }
     .ai-modal-footer {
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-top: 1px solid rgba(214,189,116,.24);
       padding-top: 10px;
       text-align: center;
       color: #746b84;

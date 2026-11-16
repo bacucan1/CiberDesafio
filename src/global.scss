@@ -36,15 +36,29 @@
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import '@ionic/angular/css/palettes/dark.system.css';
 
+/* Paleta compartida: cielo nocturno, pergamino, bronce y luz estelar. */
+:root {
+  --realm-night: #090a18;
+  --realm-midnight: #10132b;
+  --realm-panel: #171320;
+  --realm-parchment: #ead89a;
+  --realm-parchment-light: #f3e7c1;
+  --realm-ink: #201506;
+  --realm-gold: #d6bd74;
+  --realm-gold-bright: #ffd658;
+  --realm-star: #67e6c0;
+  --realm-serif: Georgia, 'Times New Roman', serif;
+}
+
 /* Tema estelar compartido para toda la aplicacion: fondo cósmico con degradados. */
 ion-app {
   background:
     radial-gradient(circle at 50% -10%, rgba(112, 86, 200, 0.38), transparent 55%),
     radial-gradient(circle at 85% 90%, rgba(103, 230, 192, 0.12), transparent 50%),
     radial-gradient(circle at 8% 70%, rgba(112, 86, 200, 0.2), transparent 55%),
-    #090a18;
+    var(--realm-night);
 }
 
 body {
-  background: #090a18;
+  background: var(--realm-night);
 }

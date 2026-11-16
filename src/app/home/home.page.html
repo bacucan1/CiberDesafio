@@ -33,58 +33,10 @@
       <div class="shield-mark"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon></div>
     </section>
 
-    <!-- Interactive AI Challenge Mode Launch Banner -->
-    <div class="ai-trigger-card page-reveal" (click)="abrirModoAi()">
-      <div class="ai-trigger-copy">
-        <span class="ai-chip">
-          <ion-icon name="sparkles" aria-hidden="true"></ion-icon>
-          {{ 'game.aiModeBadge' | translate }}
-        </span>
-        <h3>
-          <ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon>
-          {{ 'game.aiModeTitle' | translate }}
-        </h3>
-        <p>{{ 'game.aiModeDesc' | translate }}</p>
-      </div>
-      <button type="button" class="ai-launch-btn">
-        <ion-icon name="sparkles" aria-hidden="true"></ion-icon>
-        {{ 'game.openAiMode' | translate }}
-      </button>
-    </div>
-
     <section class="player-stats page-reveal" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'stats'">
       <div class="stat-item"><span class="stat-icon xp-icon"><ion-icon name="star"></ion-icon></span><div><strong>{{ puntos }} {{ 'game.xp' | translate }}</strong><small>Recompensa total</small></div></div>
       <div class="stat-item"><span class="stat-icon streak-icon"><ion-icon name="flame"></ion-icon></span><div><strong>{{ racha }} {{ racha === 1 ? 'racha' : 'rachas' }}</strong><small>{{ 'game.streak' | translate }}</small></div></div>
       <div class="stat-item"><span class="stat-icon level-icon"><ion-icon name="medal"></ion-icon></span><div><strong>{{ nivel }}</strong><small>{{ 'game.level' | translate }}</small></div></div>
-    </section>
-
-    <section class="improvement-plan page-reveal" aria-labelledby="student-improvement-title">
-      <div class="improvement-heading">
-        <div><p class="eyebrow">GUÍA ADAPTATIVA</p><h2 id="student-improvement-title">Tus puntos de mejora</h2></div>
-        <ion-icon name="sparkles" aria-hidden="true"></ion-icon>
-      </div>
-      @if (cargandoPuntosMejora) {
-        <p role="status">Revisando tus resultados…</p>
-      } @else if (errorPuntosMejora) {
-        <p role="alert">{{ errorPuntosMejora }}</p>
-      } @else if (puntosMejora.length) {
-        <p class="improvement-description">Recomendaciones automáticas basadas en tus decisiones; tus resultados no se envían a una IA externa.</p>
-        <div class="improvement-list">
-          @for (punto of puntosMejora; track punto.eje; let index = $index) {
-            <article class="improvement-item" [class.improvement-priority]="index === 0">
-              <div class="improvement-item-heading">
-                <div><span>{{ index === 0 ? 'PRIORIDAD DE PRÁCTICA' : punto.nivel }}</span><h3>{{ punto.eje }}</h3></div>
-                <strong>{{ punto.porcentajeAciertos }}%</strong>
-              </div>
-              <p>{{ punto.recomendacion }}</p>
-              <small>Actividad sugerida: {{ punto.actividad }}</small>
-              <ion-button fill="outline" size="small" (click)="practicarEje(punto.eje)">Practicar este eje</ion-button>
-            </article>
-          }
-        </div>
-      } @else {
-        <p class="improvement-empty">Completa una misión para recibir recomendaciones concretas según tus resultados.</p>
-      }
     </section>
 
     <section class="story-balance page-reveal" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'balance'">
@@ -169,6 +121,53 @@
       <button class="deck-arrow deck-arrow-right" [class.tour-highlight]="mostrarTutorial && pasoTutorial.target === 'arrows'" aria-label="Ruta siguiente" (click)="rutaSiguiente()"><ion-icon name="arrow-forward"></ion-icon></button>
       </div>
     </div>
+
+    <section class="improvement-plan page-reveal" aria-labelledby="student-improvement-title">
+      <div class="improvement-heading">
+        <div><p class="eyebrow">GUÍA ADAPTATIVA</p><h2 id="student-improvement-title">Tus puntos de mejora</h2></div>
+        <ion-icon name="sparkles" aria-hidden="true"></ion-icon>
+      </div>
+      @if (cargandoPuntosMejora) {
+        <p role="status">Revisando tus resultados…</p>
+      } @else if (errorPuntosMejora) {
+        <p role="alert">{{ errorPuntosMejora }}</p>
+      } @else if (puntosMejora.length) {
+        <p class="improvement-description">Recomendaciones automáticas basadas en tus decisiones; tus resultados no se envían a una IA externa.</p>
+        <div class="improvement-list">
+          @for (punto of puntosMejora; track punto.eje; let index = $index) {
+            <article class="improvement-item" [class.improvement-priority]="index === 0">
+              <div class="improvement-item-heading">
+                <div><span>{{ index === 0 ? 'PRIORIDAD DE PRÁCTICA' : punto.nivel }}</span><h3>{{ punto.eje }}</h3></div>
+                <strong>{{ punto.porcentajeAciertos }}%</strong>
+              </div>
+              <p>{{ punto.recomendacion }}</p>
+              <small>Actividad sugerida: {{ punto.actividad }}</small>
+              <ion-button fill="outline" size="small" (click)="practicarEje(punto.eje)">Practicar este eje</ion-button>
+            </article>
+          }
+        </div>
+      } @else {
+        <p class="improvement-empty">Completa una misión para recibir recomendaciones concretas según tus resultados.</p>
+      }
+    </section>
+
+    <section class="ai-trigger-card page-reveal" aria-label="Retos opcionales de inteligencia artificial">
+      <div class="ai-trigger-copy">
+        <span class="ai-chip">
+          <ion-icon name="sparkles" aria-hidden="true"></ion-icon>
+          {{ 'game.aiModeBadge' | translate }}
+        </span>
+        <h3>
+          <ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon>
+          {{ 'game.aiModeTitle' | translate }}
+        </h3>
+        <p>{{ 'game.aiModeDesc' | translate }}</p>
+      </div>
+      <button type="button" class="ai-launch-btn" (click)="abrirModoAi()">
+        <ion-icon name="sparkles" aria-hidden="true"></ion-icon>
+        {{ 'game.openAiMode' | translate }}
+      </button>
+    </section>
   </main>
 </ion-content>
 

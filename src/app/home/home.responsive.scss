@@ -10,9 +10,9 @@
 }
 
 .game-layout {
-  gap: clamp(16px, 2.4vw, 36px);
-  grid-template-columns: minmax(0, 1fr) minmax(0, min(44vw, 500px)) minmax(0, 1fr);
-  max-width: 1240px;
+  gap: 72px;
+  grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr);
+  max-width: 1070px;
 }
 
 .mission-map {
@@ -134,34 +134,60 @@
 }
 
 .tutorial-actions .tutorial-next {
-  --background: #287f72;
-  --color: #fff;
+  --background: linear-gradient(135deg,#ead89a,#c59a4a);
+  --border-color: #ffe8a2;
+  --border-style: double;
+  --border-width: 3px;
+  --color: #201506;
+  font-family: Georgia, 'Times New Roman', serif;
 }
 
 @media (max-width: 900px) {
   .game-layout {
     align-items: start;
-    grid-template-columns: minmax(0, 1.3fr) minmax(190px, .7fr);
+    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .card-deck {
     grid-column: 1;
-    grid-row: 1;
+    grid-row: 2;
+    margin: 0 auto;
+    max-width: min(620px, calc(100% - 120px));
   }
 
   .mission-map {
-    border-left: 1px solid rgba(103, 230, 192, .24);
-    grid-column: 2;
+    border: 1px solid rgba(214, 189, 116, .36);
+    grid-column: 1;
     grid-row: 1;
-    padding-left: 16px;
+    padding: 14px;
+  }
+
+  .exercise-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 3px 3px 9px;
+    scroll-snap-type: x proximity;
+    scrollbar-color: rgba(214, 189, 116, .6) #211806;
+  }
+
+  .exercise-item {
+    flex: 0 0 190px;
+    scroll-snap-align: start;
+  }
+
+  .mission-tip {
+    display: none;
   }
 
   .deck-arrow-left {
-    left: -20px;
+    left: -38px;
   }
 
   .deck-arrow-right {
-    right: -20px;
+    right: -38px;
   }
 }
 
@@ -231,8 +257,8 @@
   }
 
   .mission-map {
-    background: rgba(9, 10, 24, .42);
-    border: 1px solid rgba(103, 230, 192, .24);
+    background: rgba(16, 13, 27, .92);
+    border: 1px solid rgba(214, 189, 116, .36);
     display: block;
     margin-bottom: 18px;
     padding: 14px 12px 10px;
@@ -254,7 +280,7 @@
     overscroll-behavior-inline: contain;
     padding: 3px 3px 9px;
     scroll-snap-type: x proximity;
-    scrollbar-color: rgba(103, 230, 192, .5) transparent;
+    scrollbar-color: rgba(214, 189, 116, .6) #211806;
   }
 
   .exercise-item {
@@ -331,6 +357,22 @@
 
   .option-copy {
     font-size: .82rem;
+  }
+
+  .ai-trigger-card {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 14px;
+    text-align: center;
+  }
+
+  .ai-trigger-copy h3 {
+    justify-content: center;
+  }
+
+  .ai-launch-btn {
+    justify-content: center;
+    width: 100%;
   }
 }
 

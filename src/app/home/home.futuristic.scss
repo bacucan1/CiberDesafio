@@ -18,13 +18,13 @@ ion-title { color: var(--paper-light); font-family: Georgia, serif; letter-spaci
 .story-balance { background: #211806; border: 1px solid rgba(214,189,116,.45); border-radius: 0; box-shadow: none; margin: 0 auto 22px; max-width: 1070px; padding: 10px 15px; }
 .balance-heading { color: var(--paper); font-family: monospace; font-size: .62rem; margin-bottom: 9px; } .balance-heading span { color: #968154; font-size: .59rem; } .balance-heading strong { color: var(--paper-light); font-family: Georgia, serif; font-size: .78rem; font-weight: 400; }
 .balance-grid { gap: 16px; } .balance-meter > div { font-family: monospace; font-size: .62rem; } .balance-meter span { color: #a4946d; } .balance-meter strong { color: var(--paper-light); } .balance-meter ion-progress-bar { --background: #3a2d13; --progress-background: var(--neon); border-radius: 0; height: 5px; }
-.game-layout { align-items: center; display: grid; gap: clamp(20px, 5vw, 75px); grid-template-columns: minmax(150px, 1fr) minmax(350px, 435px) minmax(170px, 1fr); margin: 0 auto; max-width: 1180px; }
-.mission-map { background: rgba(9,10,24,.42); border: 0; border-left: 1px solid rgba(103,230,192,.24); border-radius: 0; box-shadow: none; color: #c2bdd2; grid-column: 3; grid-row: 1; max-width: 250px; padding: 18px 0 18px 22px; }
+.game-layout { align-items: start; display: grid; gap: 24px; grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr); margin: 0 auto; max-width: 1070px; }
+.mission-map { background: rgba(16,13,27,.92); border: 1px solid rgba(214,189,116,.36); border-radius: 0; box-shadow: 0 12px 30px rgba(0,0,0,.2); color: #c2bdd2; grid-column: 1; grid-row: 1; max-width: none; padding: 18px; }
 .section-heading { margin: 0 0 14px; } .section-heading .eyebrow { color: var(--neon); font-family: monospace; font-size: .58rem; } .section-heading h2 { color: var(--paper-light); font-family: Georgia, serif; font-size: 1.15rem; font-weight: 400; }
 ion-chip { --background: rgba(103,230,192,.12); --color: var(--neon); border: 1px solid rgba(103,230,192,.32); border-radius: 0; font-family: monospace; font-size: .58rem; }
 .exercise-list { gap: 3px; } .exercise-item { --route-color: var(--neon); border-radius: 0; color: #beb8ce; font-family: monospace; padding: 8px 4px; } .exercise-item.active { background: rgba(103,230,192,.1); border-color: rgba(103,230,192,.42); color: white; } .exercise-icon { background: transparent; border-radius: 0; color: var(--route-color); font-size: .95rem; height: 27px; width: 27px; } .exercise-copy strong { font-size: .67rem; font-weight: 400; } .exercise-copy small { color: #777590; font-size: .55rem; } .active-dot { background: var(--neon); box-shadow: 0 0 7px var(--neon); }
 .mission-tip { border-color: rgba(103,230,192,.18); margin-top: 14px; } .mission-tip p { color: #777590; font-family: monospace; font-size: .59rem; } .mission-tip strong { color: var(--neon); }
-.card-deck { grid-column: 2; grid-row: 1; padding: 0 15px 15px 0; }
+.card-deck { grid-column: 2; grid-row: 1; min-width: 0; padding: 0 15px 15px 0; }
 .deck-layer { border-radius: 0; } .deck-layer-back { background: #5c4922; border-color: #9d8448; inset: 13px 0 0 14px; transform: rotate(1.8deg); } .deck-layer-front { background: #957b3d; border-color: #c8ac61; inset: 7px 5px 1px 7px; transform: rotate(.8deg); }
 .scenario-card { background: var(--paper); border: 0; border-radius: 0; box-shadow: 0 24px 55px rgba(0,0,0,.5); color: var(--ink-night); cursor: grab; touch-action: pan-y; transition: transform 220ms cubic-bezier(.22,.8,.28,1), box-shadow 220ms ease; will-change: transform; } .scenario-card.card-dragging { cursor: grabbing; transition: none; } .scenario-card.card-dragging ion-card-header, .scenario-card.card-dragging ion-card-content { pointer-events: none; }
 .scenario-card ion-card-header { background: var(--paper); padding: 18px 24px 16px; } .card-meta { margin-bottom: 12px; } .card-meta span { color: #5c4c28; font-family: monospace; font-size: .61rem; } ion-badge { --background: #241b08; --color: var(--paper-light); border-radius: 0; font-family: monospace; font-size: .57rem; }
@@ -40,8 +40,8 @@ ion-card-title { color: var(--ink-night); font-family: Georgia, serif; font-size
 .complete-feedback { background: #211807; } .completion-medal { background: #695323; border-radius: 0; color: var(--signal); } .complete-feedback .feedback-label { color: var(--neon); } .result-grid strong { color: var(--neon); } .final-recommendation { background: #302515; color: #c3b58f; font-family: monospace; }
 .deck-arrow { align-items: center; background: transparent; border: 0; color: #c8c4d4; cursor: pointer; display: flex; font-size: 2.6rem; height: 80px; justify-content: center; padding: 0; position: absolute; top: calc(50% - 40px); width: 45px; z-index: 3; } .deck-arrow:hover { color: var(--signal); text-shadow: 0 0 12px var(--signal); } .deck-arrow-left { left: -62px; } .deck-arrow-left ion-icon { transform: rotate(180deg); } .deck-arrow-right { right: -62px; }
 @keyframes card-arrive { 0% { opacity: .35; transform: translateX(28px) rotate(1.2deg); } 60% { transform: translateX(-4px) rotate(-.2deg); } 100% { opacity: 1; transform: translateX(0) rotate(0); } }
-@media (max-width: 850px) { .game-layout { gap: 24px; grid-template-columns: minmax(0, 435px) minmax(170px, 1fr); } .card-deck { grid-column: 1; } .mission-map { border-left: 0; grid-column: 2; padding-left: 10px; } .deck-arrow-left { left: -48px; } .deck-arrow-right { right: -48px; } }
-@media (max-width: 700px) { .dashboard-shell { padding: 16px 12px 45px; } .welcome-block { margin-bottom: 10px; } .welcome-block .intro { display: none; } .player-stats { grid-template-columns: repeat(3, 1fr); } .stat-item { gap: 3px; min-height: 48px; padding: 5px; } .stat-item small { display: none; } .stat-item strong { font-size: .66rem; } .stat-icon { font-size: .95rem; width: 22px; } .balance-grid { gap: 8px; } .balance-heading { display: block; } .balance-heading strong { display: block; margin-top: 4px; } .game-layout { display: block; } .mission-map { display: none; } .card-deck { margin: 0 auto; max-width: 435px; padding-right: 8px; } .deck-arrow-left { left: -12px; } .deck-arrow-right { right: -12px; } .scenario-card ion-card-header { padding-left: 17px; padding-right: 17px; } .scenario-card ion-card-content { padding-left: 17px; padding-right: 17px; } }
+@media (max-width: 850px) { .game-layout { gap: 16px; grid-template-columns: minmax(155px, .65fr) minmax(0, 1.35fr); } .card-deck { grid-column: 2; } .mission-map { grid-column: 1; padding: 14px; } .deck-arrow-left { left: -38px; } .deck-arrow-right { right: -38px; } }
+@media (max-width: 700px) { .dashboard-shell { padding: 16px 12px 45px; } .welcome-block { margin-bottom: 10px; } .welcome-block .intro { display: none; } .player-stats { grid-template-columns: repeat(3, 1fr); } .stat-item { gap: 3px; min-height: 48px; padding: 5px; } .stat-item small { display: none; } .stat-item strong { font-size: .66rem; } .stat-icon { font-size: .95rem; width: 22px; } .balance-grid { gap: 8px; } .balance-heading { display: block; } .balance-heading strong { display: block; margin-top: 4px; } .game-layout { display: grid; gap: 13px; grid-template-columns: minmax(0, 1fr); } .mission-map { border: 1px solid rgba(214,189,116,.36); display: block; grid-column: 1; grid-row: 1; max-width: none; padding: 12px; } .section-heading { align-items: center; } .exercise-list { display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 2px 2px 8px; scrollbar-color: #9c8752 #211806; } .exercise-item { flex: 0 0 170px; } .mission-tip { display: none; } .card-deck { grid-column: 1; grid-row: 2; margin: 0 auto; max-width: 435px; padding-right: 8px; } .deck-arrow-left { left: -12px; } .deck-arrow-right { right: -12px; } .scenario-card ion-card-header { padding-left: 17px; padding-right: 17px; } .scenario-card ion-card-content { padding-left: 17px; padding-right: 17px; } }
 
 .header-actions-group {
   display: flex;
@@ -50,30 +50,31 @@ ion-card-title { color: var(--ink-night); font-family: Georgia, serif; font-size
 }
 
 .ai-trigger-card {
-  background: linear-gradient(135deg, rgba(116, 83, 200, 0.28), rgba(103, 230, 192, 0.18));
-  border: 1px solid rgba(103, 230, 192, 0.45);
-  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(214,189,116,.12), rgba(103,230,192,.07));
+  border: 1px solid rgba(214,189,116,.45);
+  border-radius: 0;
   padding: 14px 20px;
-  margin: 0 auto 16px;
+  margin: 24px auto 16px;
   max-width: 1070px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  cursor: pointer;
   transition: all 0.2s ease-in-out;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 
   &:hover {
-    border-color: #67e6c0;
-    box-shadow: 0 0 25px rgba(103, 230, 192, 0.35);
+    border-color: #ffd658;
+    box-shadow: 0 0 25px rgba(214,189,116,.2);
     transform: translateY(-2px);
   }
 
   .ai-trigger-copy {
     .ai-chip {
-      background: rgba(103, 230, 192, 0.2);
-      color: #67e6c0;
+      background: rgba(214,189,116,.14);
+      border: 1px solid rgba(214,189,116,.32);
+      border-radius: 0;
+      color: #ffd658;
       font-size: 0.62rem;
       font-weight: 800;
       letter-spacing: 0.1em;
@@ -85,7 +86,8 @@ ion-card-title { color: var(--ink-night); font-family: Georgia, serif; font-size
       margin-bottom: 6px;
     }
     h3 {
-      color: #fff;
+      color: #ead89a;
+      font-family: Georgia, serif;
       font-size: clamp(0.95rem, 2.5vw, 1.2rem);
       margin: 2px 0 4px;
       display: flex;
@@ -93,7 +95,7 @@ ion-card-title { color: var(--ink-night); font-family: Georgia, serif; font-size
       gap: 8px;
     }
     p {
-      color: #b5aed0;
+      color: #bbae91;
       font-size: 0.78rem;
       margin: 0;
       line-height: 1.45;
@@ -101,10 +103,11 @@ ion-card-title { color: var(--ink-night); font-family: Georgia, serif; font-size
   }
 
   .ai-launch-btn {
-    background: #67e6c0;
-    color: #090a18;
-    border: none;
-    border-radius: 8px;
+    background: linear-gradient(135deg,#ead89a,#c59a4a);
+    color: #201506;
+    border: 3px double #ffe8a2;
+    border-radius: 0;
+    font-family: Georgia, serif;
     font-weight: 800;
     font-size: 0.8rem;
     padding: 10px 18px;
@@ -114,23 +117,7 @@ ion-card-title { color: var(--ink-night); font-family: Georgia, serif; font-size
     white-space: nowrap;
     cursor: pointer;
     flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(103, 230, 192, 0.3);
-  }
-}
-
-@media (max-width: 600px) {
-  .ai-trigger-card {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-    padding: 14px;
-    .ai-trigger-copy h3 {
-      justify-content: center;
-    }
-    .ai-launch-btn {
-      width: 100%;
-      justify-content: center;
-    }
+    box-shadow: 0 4px 12px rgba(214,189,116,.2);
   }
 }
 

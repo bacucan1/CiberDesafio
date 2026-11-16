@@ -16,6 +16,11 @@
     <p class="eyebrow">SEGUIMIENTO EDUCATIVO · {{ institucion || 'INSTITUCIÓN' }}</p>
     <h1>Mapa de aprendizaje</h1>
     <p class="intro">Crea grupos, comparte códigos y consulta el progreso de cada estudiante que pertenezca a tus grupos.</p>
+    <nav class="section-jump" aria-label="Secciones del panel docente">
+      <a href="#group-tools"><span>01</span> Grupos y códigos</a>
+      <a href="#group-results"><span>02</span> Progreso y refuerzos</a>
+      <a href="#group-students"><span>03</span> Estudiantes</a>
+    </nav>
 
     @if (error) { <ion-text color="danger"><p class="teacher-message" role="alert">{{ error }}</p></ion-text> }
     @if (mensaje) { <ion-text color="success"><p class="teacher-message success" role="status">{{ mensaje }}</p></ion-text> }
@@ -31,7 +36,7 @@
     @if (cargando) {
       <p role="status">Cargando datos de tu institución…</p>
     } @else if (!error || institucion) {
-      <section class="group-tools">
+      <section class="group-tools" id="group-tools">
         <div class="group-tools-heading">
           <div><p class="eyebrow">ACCESO A TUS GRUPOS</p><h2>Invitar estudiantes</h2></div>
           <span class="privacy-chip"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon> Sin correos; acceso solo a tus grupos</span>
@@ -75,7 +80,7 @@
         }
       </section>
 
-      <section class="results-section">
+      <section class="results-section" id="group-results">
         <div class="results-heading">
           <div><p class="eyebrow">RESULTADOS AGREGADOS</p><h2>Progreso del grupo</h2></div>
           <div class="results-controls">
@@ -150,7 +155,7 @@
         }
       </section>
 
-      <section class="students-section" aria-labelledby="students-title">
+      <section class="students-section" id="group-students" aria-labelledby="students-title">
         <div class="students-heading">
           <div><p class="eyebrow">SEGUIMIENTO POR ESTUDIANTE</p><h2 id="students-title">Estudiantes del grupo</h2></div>
           <span class="privacy-chip"><ion-icon name="shield-checkmark" aria-hidden="true"></ion-icon> Visible solo a docentes del grupo</span>
